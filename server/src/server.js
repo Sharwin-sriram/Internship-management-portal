@@ -6,6 +6,7 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import passwordResetRoutes from "./routes/passwordReset.routes.js";
+import documentRoutes from "./routes/documentRoutes.js";
 import { startTokenCleanup } from "./utils/scheduler.js";
 import emailService from "./services/emailService.js";
 import logger from "./utils/logger.js";
@@ -36,6 +37,7 @@ app.use((req, res, next) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/password-reset", passwordResetRoutes);
+app.use("/api/documents", documentRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -61,6 +63,11 @@ app.get("/", (req, res) => {
         request: "POST /api/password-reset/request",
         validate: "POST /api/password-reset/validate",
         reset: "POST /api/password-reset/reset",
+      },
+      documents: {
+        upload: "POST /api/documents/upload",
+        list: "GET /api/documents",
+        delete: "DELETE /api/documents/:filename",
       },
     },
     documentation: "See POSTMAN_TESTING_GUIDE.md for API documentation",
