@@ -1,6 +1,6 @@
 import express from "express";
 const router = express.Router();
-import * as passwordResetController from "../controllers/passwordReset.controller.js";
+import * as passwordResetController from "../controllers/passwordResetController.js";
 import { rateLimiter } from "../middlewares/rateLimiter.middleware.js";
 
 // Apply rate limiting to prevent abuse
