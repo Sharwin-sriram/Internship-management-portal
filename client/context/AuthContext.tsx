@@ -6,7 +6,7 @@ import { postJson, getJson } from '../lib/api';
 
 interface AuthContextValue {
   user: AuthUser | null;
-  login: (email: string, password: string) => Promise<string | null>;
+  login: (email: string, password: string, role?: AuthUser['role']) => Promise<string | null>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -50,8 +50,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  async function login(email: string, password: string): Promise<string | null> {
-    const res = await postJson<LoginResponse>('/auth/login', { email, password });
+  async function login(email: string, password: string, role: AuthUser['role'] = 'student'): Promise<string | null> {
+    const path = role === 'company' ? '/companies/login' : '/auth/login';
+    const res = await postJson<LoginResponse>(path, { email, password });
     if (res.ok && res.body?.success) {
       const authUser = { ...res.body.user, token: res.body.token };
       saveAuth(authUser);
