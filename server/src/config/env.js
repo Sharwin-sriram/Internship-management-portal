@@ -1,7 +1,8 @@
-require('dotenv').config();
+import dotenv from "dotenv";
+dotenv.config();
 
-module.exports = {
-  NODE_ENV: process.env.NODE_ENV || 'development',
+export default {
+  NODE_ENV: process.env.NODE_ENV || "development",
   PORT: process.env.PORT || 3001,
   MONGO_URI: process.env.MONGO_URI || process.env.MONGODB_URI,
   MONGODB_URI: process.env.MONGODB_URI || process.env.MONGO_URI,
