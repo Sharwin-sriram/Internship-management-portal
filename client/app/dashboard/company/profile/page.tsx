@@ -201,7 +201,7 @@ export default function CompanyProfilePage() {
               value={form.description}
               onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
               rows={4}
-              style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid #e2e8f0', resize: 'vertical' }}
+              style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid #e2e8f0', resize: 'none' }}
             />
           </div>
 
@@ -218,16 +218,9 @@ export default function CompanyProfilePage() {
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
             <button
-              type="button"
-              onClick={() => router.push('/dashboard/company')}
-              style={{ padding: '12px 18px', borderRadius: 10, border: '1px solid #cbd5f5', background: '#fff', color: '#1e3a8a', fontWeight: 700 }}
-            >
-              Skip for now
-            </button>
-            <button
               type="submit"
               disabled={saving}
-              style={{ padding: '12px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #2297FA 0%, #8082D6 100%)', color: '#fff', fontWeight: 700 }}
+              style={{ padding: '12px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #2297FA 0%, #8082D6 100%)', color: '#fff', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}
             >
               {saving ? 'Saving...' : 'Save profile'}
             </button>

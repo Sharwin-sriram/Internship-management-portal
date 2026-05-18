@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 
 const items = [
   { href: '/dashboard/company', label: 'Overview' },
-  { href: '/dashboard/company/profile', label: 'Company Profile' },
   { href: '/dashboard/company/recruiters', label: 'Recruiting Team' },
   { href: '/dashboard/company/talent', label: 'Talent Search' },
   { href: '/dashboard/company/analytics', label: 'Analytics' },

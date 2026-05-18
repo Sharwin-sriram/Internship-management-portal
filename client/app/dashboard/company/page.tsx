@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../context/AuthContext';
-import { getJson, postAuthJson } from '../../../lib/api';
+import { getJson } from '../../../lib/api';
 
 interface CompanyProfile {
   _id: string;
@@ -29,13 +29,6 @@ interface CompanyProfile {
   recruiters?: Recruiter[];
 }
 
-interface Recruiter {
-  _id?: string;
-  name: string;
-  email: string;
-  phone?: string;
-  title?: string;
-}
 
 interface DashboardMetrics {
   activePostings: number;
@@ -52,16 +45,6 @@ interface AnalyticsData {
   averageTimeToOfferDays: number;
 }
 
-interface TalentProfile {
-  id: string;
-  name: string;
-  branch: string;
-  cgpa: number;
-  graduation_year: number;
-  skills: string[];
-  contact: { email?: string } | null;
-  contact_status: 'locked' | 'unlocked' | 'pending';
-}
 
 export default function CompanyDashboardPage() {
   const router = useRouter();
@@ -70,19 +53,9 @@ export default function CompanyDashboardPage() {
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [recruiters, setRecruiters] = useState<Recruiter[]>([]);
-  const [talent, setTalent] = useState<TalentProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
-  const [searchFilters, setSearchFilters] = useState({
-    skill: '',
-    branch: '',
-    minCgpa: '',
-    graduationYear: '',
-  });
-  const [recruiterForm, setRecruiterForm] = useState({ name: '', email: '', phone: '', title: '' });
-  const [actionMessage, setActionMessage] = useState('');
 
   const profilePromptKey = profile?._id
     ? `company_profile_prompt_dismissed_${profile._id}`
@@ -100,11 +73,10 @@ export default function CompanyDashboardPage() {
       setLoading(true);
       setError('');
 
-      const [profileRes, metricsRes, analyticsRes, recruitersRes] = await Promise.all([
+      const [profileRes, metricsRes, analyticsRes] = await Promise.all([
         getJson<{ success: boolean; data: CompanyProfile }>('/companies/me'),
         getJson<{ success: boolean; data: DashboardMetrics }>('/companies/me/dashboard'),
         getJson<{ success: boolean; data: AnalyticsData }>('/companies/me/analytics'),
-        getJson<{ success: boolean; data: Recruiter[] }>('/companies/me/recruiters'),
       ]);
 
       if (profileRes.ok && profileRes.body?.success) {
@@ -115,9 +87,6 @@ export default function CompanyDashboardPage() {
       }
       if (analyticsRes.ok && analyticsRes.body?.success) {
         setAnalytics(analyticsRes.body.data);
-      }
-      if (recruitersRes.ok && recruitersRes.body?.success) {
-        setRecruiters(recruitersRes.body.data || []);
       }
 
       if (!profileRes.ok) {
@@ -166,61 +135,6 @@ export default function CompanyDashboardPage() {
     }
   }
 
-  async function handleTalentSearch(e: React.FormEvent) {
-    e.preventDefault();
-    setActionMessage('');
-
-    const params = new URLSearchParams();
-    if (searchFilters.skill) params.set('skill', searchFilters.skill);
-    if (searchFilters.branch) params.set('branch', searchFilters.branch);
-    if (searchFilters.minCgpa) params.set('minCgpa', searchFilters.minCgpa);
-    if (searchFilters.graduationYear) params.set('graduationYear', searchFilters.graduationYear);
-
-    const res = await getJson<{ success: boolean; data: TalentProfile[] }>(`/companies/talent/search?${params.toString()}`);
-    if (res.ok && res.body?.success) {
-      setTalent(res.body.data.map(item => ({ ...item, contact_status: item.contact_status || 'locked' })));
-      return;
-    }
-
-    setActionMessage('Unable to load talent search results.');
-  }
-
-  async function handleUnlockRequest(studentId: string) {
-    setActionMessage('');
-    const res = await postAuthJson<{ success: boolean; data: { status: string } }>(
-      '/companies/talent/requests',
-      { studentId },
-    );
-
-    if (res.ok && res.body?.success) {
-      setTalent(prev => prev.map(item => (
-        item.id === studentId ? { ...item, contact_status: 'pending' } : item
-      )));
-      setActionMessage('Unlock request sent to coordinator.');
-      return;
-    }
-
-    setActionMessage('Unable to request contact unlock.');
-  }
-
-  async function handleRecruiterAdd(e: React.FormEvent) {
-    e.preventDefault();
-    setActionMessage('');
-
-    const res = await postAuthJson<{ success: boolean; data: Recruiter[] }>(
-      '/companies/me/recruiters',
-      recruiterForm,
-    );
-
-    if (res.ok && res.body?.success) {
-      setRecruiters(res.body.data || []);
-      setRecruiterForm({ name: '', email: '', phone: '', title: '' });
-      setActionMessage('Recruiter added successfully.');
-      return;
-    }
-
-    setActionMessage('Unable to add recruiter.');
-  }
 
   const volumePoints = useMemo(() => {
     if (!analytics?.applicationVolume?.length) return '';
@@ -251,7 +165,7 @@ export default function CompanyDashboardPage() {
   }
 
   return (
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '1.5rem 0 0' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '1.5rem 0 0', height: 'calc(100vh - 120px)', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}>
           <div>
@@ -267,11 +181,6 @@ export default function CompanyDashboardPage() {
             <p style={{ color: 'var(--color-muted)', fontSize: '1rem', margin: 0 }}>
               Monitor postings, approvals, and talent pipeline health in one place.
             </p>
-          </div>
-          <div style={{ background: '#fff', padding: '16px 20px', borderRadius: 16, border: '1px solid rgba(148,174,254,0.25)', boxShadow: '0 12px 30px rgba(34,151,250,0.12)' }}>
-            <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8', marginBottom: 6 }}>Primary Contact</p>
-            <p style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{profile?.primary_contact?.name || 'Not set'}</p>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '4px 0 0' }}>{profile?.primary_contact?.email || 'No email'}</p>
           </div>
         </div>
 
@@ -308,21 +217,6 @@ export default function CompanyDashboardPage() {
           </div>
         )}
 
-        {/* Metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', marginBottom: '2.5rem' }}>
-          {[
-            { label: 'Active Postings', value: metrics?.activePostings ?? 0 },
-            { label: 'Total Applications', value: metrics?.totalApplications ?? 0 },
-            { label: 'Shortlisted Candidates', value: metrics?.shortlistedCandidates ?? 0 },
-            { label: 'Offer Conversion Rate', value: `${metrics?.offerConversionRate ?? 0}%` },
-            { label: 'Pending Actions', value: metrics?.pendingActions ?? 0 },
-          ].map(card => (
-            <div key={card.label} style={{ background: '#fff', borderRadius: 18, padding: '18px 20px', border: '1px solid rgba(148,174,254,0.25)', boxShadow: '0 8px 20px rgba(15,23,42,0.06)' }}>
-              <p style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{card.label}</p>
-              <h3 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{card.value}</h3>
-            </div>
-          ))}
-        </div>
 
         {/* Profile + Analytics */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
@@ -392,125 +286,6 @@ export default function CompanyDashboardPage() {
           </div>
         </div>
 
-        {/* Recruiters + Talent */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.2fr)', gap: '1.5rem' }}>
-          <div style={{ background: '#fff', borderRadius: 20, padding: '24px', border: '1px solid rgba(148,174,254,0.25)', boxShadow: '0 12px 30px rgba(15,23,42,0.08)' }}>
-            <h3 style={{ marginTop: 0, fontSize: '1.15rem', fontWeight: 700 }}>Recruiter Team</h3>
-            <div style={{ display: 'grid', gap: 12, marginBottom: 18 }}>
-              {recruiters.length === 0 && (
-                <p style={{ color: '#94a3b8', margin: 0 }}>Add recruiters to collaborate on hiring.</p>
-              )}
-              {recruiters.map(rec => (
-                <div key={rec._id || rec.email} style={{ padding: 12, borderRadius: 14, border: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                  <strong>{rec.name}</strong>
-                  <p style={{ margin: '4px 0', color: '#64748b', fontSize: '0.85rem' }}>{rec.title || 'Recruiter'} · {rec.email}</p>
-                </div>
-              ))}
-            </div>
-            <form onSubmit={handleRecruiterAdd} style={{ display: 'grid', gap: 10 }}>
-              <input
-                placeholder="Full name"
-                value={recruiterForm.name}
-                onChange={e => setRecruiterForm(prev => ({ ...prev, name: e.target.value }))}
-                required
-                style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0' }}
-              />
-              <input
-                placeholder="Email"
-                type="email"
-                value={recruiterForm.email}
-                onChange={e => setRecruiterForm(prev => ({ ...prev, email: e.target.value }))}
-                required
-                style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0' }}
-              />
-              <input
-                placeholder="Title"
-                value={recruiterForm.title}
-                onChange={e => setRecruiterForm(prev => ({ ...prev, title: e.target.value }))}
-                style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0' }}
-              />
-              <button type="submit" style={{ padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #2297FA 0%, #8082D6 100%)', color: '#fff', fontWeight: 700 }}>
-                Add recruiter
-              </button>
-            </form>
-          </div>
-
-          <div style={{ background: '#fff', borderRadius: 20, padding: '24px', border: '1px solid rgba(148,174,254,0.25)', boxShadow: '0 12px 30px rgba(15,23,42,0.08)' }}>
-            <h3 style={{ marginTop: 0, fontSize: '1.15rem', fontWeight: 700 }}>Talent Search</h3>
-            <form onSubmit={handleTalentSearch} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 16 }}>
-              <input
-                placeholder="Skill"
-                value={searchFilters.skill}
-                onChange={e => setSearchFilters(prev => ({ ...prev, skill: e.target.value }))}
-                style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0' }}
-              />
-              <input
-                placeholder="Branch"
-                value={searchFilters.branch}
-                onChange={e => setSearchFilters(prev => ({ ...prev, branch: e.target.value }))}
-                style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0' }}
-              />
-              <input
-                placeholder="Min CGPA"
-                value={searchFilters.minCgpa}
-                onChange={e => setSearchFilters(prev => ({ ...prev, minCgpa: e.target.value }))}
-                style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0' }}
-              />
-              <input
-                placeholder="Grad Year"
-                value={searchFilters.graduationYear}
-                onChange={e => setSearchFilters(prev => ({ ...prev, graduationYear: e.target.value }))}
-                style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0' }}
-              />
-              <button type="submit" style={{ padding: '12px', borderRadius: 12, border: 'none', background: '#0f172a', color: '#fff', fontWeight: 700 }}>
-                Search
-              </button>
-            </form>
-
-            {actionMessage && (
-              <p style={{ color: '#2563eb', fontWeight: 600, fontSize: '0.85rem', marginBottom: 12 }}>{actionMessage}</p>
-            )}
-
-            <div style={{ display: 'grid', gap: 12 }}>
-              {talent.length === 0 && (
-                <p style={{ color: '#94a3b8', margin: 0 }}>Use filters above to discover eligible students.</p>
-              )}
-              {talent.map(student => (
-                <div key={student.id} style={{ padding: 14, borderRadius: 14, border: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <div>
-                      <strong>{student.name}</strong>
-                      <p style={{ margin: '4px 0', fontSize: '0.85rem', color: '#64748b' }}>
-                        {student.branch} · CGPA {student.cgpa} · {student.graduation_year}
-                      </p>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>{student.skills.join(', ')}</p>
-                    </div>
-                    <div>
-                      {student.contact_status === 'unlocked' && (
-                        <span style={{ fontSize: '0.8rem', color: '#16a34a', fontWeight: 700 }}>Contact unlocked</span>
-                      )}
-                      {student.contact_status === 'pending' && (
-                        <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 700 }}>Pending approval</span>
-                      )}
-                      {student.contact_status === 'locked' && (
-                        <button
-                          type="button"
-                          onClick={() => handleUnlockRequest(student.id)}
-                          style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #cbd5f5', background: '#eef2ff', color: '#3730a3', fontWeight: 700 }}
-                        >
-                          Request contact
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {student.contact_status === 'unlocked' && student.contact?.email && (
-                    <p style={{ marginTop: 8, fontSize: '0.85rem', color: '#0f172a' }}>{student.contact.email}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
   );
 }
