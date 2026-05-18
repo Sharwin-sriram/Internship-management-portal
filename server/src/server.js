@@ -15,7 +15,7 @@ import envConfig from "./config/env.js";
 dotenv.config();
 
 const app = express();
-const PORT = envConfig.PORT || process.env.PORT || 3001;
+const PORT = envConfig.PORT || process.env.PORT;
 
 // Connect to Database
 connectDB();
