@@ -28,7 +28,13 @@ export default function DashboardPage() {
     if (!isLoading && !user) router.push('/login');
   }, [user, isLoading, router]);
 
-  if (isLoading || !user) {
+  useEffect(() => {
+    if (!isLoading && user?.role === 'company') {
+      router.push('/dashboard/company');
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading || !user || user.role === 'company') {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
         <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--color-primary)', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
