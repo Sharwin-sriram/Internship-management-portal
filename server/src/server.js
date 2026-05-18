@@ -6,6 +6,7 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import passwordResetRoutes from "./routes/passwordReset.routes.js";
+import rbacRoutes from "./routes/accessControlRoutes.js";
 import { startTokenCleanup } from "./utils/scheduler.js";
 import emailService from "./services/emailService.js";
 import logger from "./utils/logger.js";
@@ -36,6 +37,7 @@ app.use((req, res, next) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/password-reset", passwordResetRoutes);
+app.use("/api/rbac", rbacRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
