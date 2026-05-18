@@ -1,3 +1,5 @@
+import { getToken } from './auth';
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:9933/api';
 
 export interface ApiResponse<T = unknown> {
@@ -8,7 +10,7 @@ export interface ApiResponse<T = unknown> {
 
 function getAuthHeaders(): HeadersInit {
   if (typeof window === 'undefined') return {};
-  const token = localStorage.getItem('token');
+  const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -39,6 +41,9 @@ async function request<T>(
 
 export const postJson = <T = unknown>(path: string, data: unknown) =>
   request<T>('POST', path, data);
+
+export const postAuthJson = <T = unknown>(path: string, data: unknown) =>
+  request<T>('POST', path, data, true);
 
 export const getJson = <T = unknown>(path: string) =>
   request<T>('GET', path, undefined, true);
