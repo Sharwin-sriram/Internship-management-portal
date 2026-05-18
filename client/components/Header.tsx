@@ -10,6 +10,7 @@ export default function Header() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
+  const isDashboardRoute = pathname.startsWith('/dashboard');
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -19,10 +20,12 @@ export default function Header() {
 
   const navLinks = user
     ? [{ href: '/dashboard', label: 'Dashboard' }]
-    : [
-        { href: '/', label: 'Home' },
-        { href: '/login', label: 'Sign in' },
-      ];
+    : isDashboardRoute
+      ? [{ href: '/', label: 'Home' }]
+      : [
+          { href: '/', label: 'Home' },
+          { href: '/login', label: 'Sign in' },
+        ];
 
   return (
     <header
