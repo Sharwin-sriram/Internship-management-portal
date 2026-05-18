@@ -1,9 +1,9 @@
-const logger = require('../utils/logger');
+import logger from "../utils/logger.js";
 
 // Simple in-memory rate limiter
 const requestCounts = new Map();
 
-exports.rateLimiter = (maxRequests = 5, windowMinutes = 15) => {
+export const rateLimiter = (maxRequests = 5, windowMinutes = 15) => {
   return (req, res, next) => {
     const identifier = req.ip || req.connection.remoteAddress;
     const now = Date.now();
@@ -14,15 +14,17 @@ exports.rateLimiter = (maxRequests = 5, windowMinutes = 15) => {
     }
 
     const requests = requestCounts.get(identifier);
-    
+
     // Remove old requests outside the time window
-    const recentRequests = requests.filter(timestamp => now - timestamp < windowMs);
-    
+    const recentRequests = requests.filter(
+      (timestamp) => now - timestamp < windowMs,
+    );
+
     if (recentRequests.length >= maxRequests) {
       logger.warn(`Rate limit exceeded for IP: ${identifier}`);
       return res.status(429).json({
         success: false,
-        message: 'Too many requests. Please try again later.'
+        message: "Too many requests. Please try again later.",
       });
     }
 
@@ -32,7 +34,7 @@ exports.rateLimiter = (maxRequests = 5, windowMinutes = 15) => {
     // Cleanup old entries periodically
     if (Math.random() < 0.01) {
       for (const [key, timestamps] of requestCounts.entries()) {
-        const recent = timestamps.filter(t => now - t < windowMs);
+        const recent = timestamps.filter((t) => now - t < windowMs);
         if (recent.length === 0) {
           requestCounts.delete(key);
         } else {

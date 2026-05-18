@@ -1,11 +1,15 @@
-const express = require('express');
+import express from "express";
 const router = express.Router();
-const passwordResetController = require('../controllers/passwordReset.controller');
-const { rateLimiter } = require('../middlewares/rateLimiter.middleware');
+import * as passwordResetController from "../controllers/passwordReset.controller.js";
+import { rateLimiter } from "../middlewares/rateLimiter.middleware.js";
 
 // Apply rate limiting to prevent abuse
-router.post('/request', rateLimiter(5, 15), passwordResetController.requestReset);
-router.post('/validate', passwordResetController.validateToken);
-router.post('/reset', passwordResetController.resetPassword);
+router.post(
+  "/request",
+  rateLimiter(5, 15),
+  passwordResetController.requestReset,
+);
+router.post("/validate", passwordResetController.validateToken);
+router.post("/reset", passwordResetController.resetPassword);
 
-module.exports = router;
+export default router;
