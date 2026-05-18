@@ -2,13 +2,19 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthUser, getStoredUser, saveAuth, clearAuth } from '../lib/auth';
-import { postJson } from '../lib/api';
+import { postJson, getJson } from '../lib/api';
 
 interface AuthContextValue {
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<string | null>;
   logout: () => void;
   isLoading: boolean;
+}
+
+interface LoginResponse {
+  success: boolean;
+  token: string;
+  user: AuthUser;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -24,22 +30,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = getStoredUser();
-    setUser(stored);
-    setIsLoading(false);
+    if (stored?.token) {
+      setUser(stored);
+      // Optional: Fetch latest profile
+      getJson<{ success: boolean; data: AuthUser }>('/auth/me').then(res => {
+        if (res.ok && res.body?.success) {
+          const authUser = { ...res.body.data, token: stored.token };
+          saveAuth(authUser);
+          setUser(authUser);
+        } else {
+          clearAuth();
+          setUser(null);
+        }
+      }).finally(() => {
+        setIsLoading(false);
+      });
+    } else {
+      setIsLoading(false);
+    }
   }, []);
 
   async function login(email: string, password: string): Promise<string | null> {
-    const res = await postJson<{ data: AuthUser }>('/auth/login', { email, password });
-    if (res.ok && res.body?.data) {
-      saveAuth(res.body.data);
-      setUser(res.body.data);
+    const res = await postJson<LoginResponse>('/auth/login', { email, password });
+    if (res.ok && res.body?.success) {
+      const authUser = { ...res.body.user, token: res.body.token };
+      saveAuth(authUser);
+      setUser(authUser);
       return null;
     }
-    const body = res.body as { error?: string } | null;
-    return body?.error ?? 'Login failed. Please check your credentials.';
+    const body = res.body as { message?: string } | null;
+    return body?.message ?? 'Login failed. Please check your credentials.';
   }
 
-  function logout() {
+  async function logout() {
+    await getJson('/auth/logout');
     clearAuth();
     setUser(null);
   }

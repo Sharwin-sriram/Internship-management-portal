@@ -1,16 +1,18 @@
 export interface AuthUser {
-  id: number;
+  id: string;
   email: string;
   name: string;
   role: 'student' | 'company' | 'admin' | 'coordinator';
-  token: string;
+  token?: string;
 }
 
 const TOKEN_KEY = 'internship_token';
 const USER_KEY  = 'internship_user';
 
 export function saveAuth(user: AuthUser) {
-  localStorage.setItem(TOKEN_KEY, user.token);
+  if (user.token) {
+    localStorage.setItem(TOKEN_KEY, user.token);
+  }
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
