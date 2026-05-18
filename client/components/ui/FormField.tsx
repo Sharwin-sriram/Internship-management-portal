@@ -7,7 +7,7 @@ interface FormFieldProps {
   id: string;
   error?: string;
   hint?: string;
-  children: React.ReactElement;
+  children: React.ReactElement<any, any>;
 }
 
 export function FormField({ label, id, error, hint, children }: FormFieldProps) {
