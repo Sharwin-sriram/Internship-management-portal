@@ -1,114 +1,65 @@
 import express from 'express';
-import { body } from 'express-validator';
+import { body, validationResult } from 'express-validator';
 import {
-  registerUser,
-  loginUser,
+  register,
+  login,
   getMe,
-  updateProfile,
-  updatePassword,
   logout,
-  forgotPassword,
-  resetPassword,
-  getUsers,
-  getUser,
-  updateUserRole,
-  deleteUser
-} from '../controllers/userController.js';
-import { protect, authorize } from '../middleware/auth.js';
-import { validationErrorHandler } from '../middleware/errorHandler.js';
-import { authLimiter } from '../middleware/security.js';
+} from '../controllers/loginController.js';
+import {
+  changePassword,
+  changeEmail,
+  reauthenticate,
+} from '../controllers/auth.controller.js';
+import { protect } from '../middlewares/auth.js';
 
 const router = express.Router();
 
-// Validation rules
 const registerValidation = [
-  body('name')
-    .trim()
-    .notEmpty()
-    .withMessage('Name is required')
-    .isLength({ max: 50 })
-    .withMessage('Name cannot exceed 50 characters'),
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email'),
-  body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters')
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 50 }).withMessage('Name cannot exceed 50 characters'),
+  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
 ];
 
 const loginValidation = [
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email'),
-  body('password')
-    .notEmpty()
-    .withMessage('Password is required')
+  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
+  body('password').notEmpty().withMessage('Password is required'),
 ];
 
-const updateProfileValidation = [
-  body('name')
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage('Name cannot be empty')
-    .isLength({ max: 50 })
-    .withMessage('Name cannot exceed 50 characters'),
-  body('email')
-    .optional()
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email')
+const passwordChangeValidation = [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
 ];
 
-const updatePasswordValidation = [
-  body('currentPassword')
-    .notEmpty()
-    .withMessage('Current password is required'),
-  body('newPassword')
-    .isLength({ min: 6 })
-    .withMessage('New password must be at least 6 characters')
+const emailChangeValidation = [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newEmail').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
 ];
 
-const forgotPasswordValidation = [
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email')
+const reauthValidation = [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
 ];
 
-const resetPasswordValidation = [
-  body('resetToken')
-    .notEmpty()
-    .withMessage('Reset token is required'),
-  body('newPassword')
-    .isLength({ min: 6 })
-    .withMessage('New password must be at least 6 characters')
-];
-
-const updateUserRoleValidation = [
-  body('role')
-    .isIn(['user', 'admin'])
-    .withMessage('Role must be user or admin')
-];
+const validationErrorHandler = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      errors: errors.array(),
+    });
+  }
+  next();
+};
 
 // Public routes
-router.post('/register', registerValidation, validationErrorHandler, registerUser);
-router.post('/login', loginValidation, validationErrorHandler, loginUser);
-router.post('/forgot-password', forgotPasswordValidation, validationErrorHandler, forgotPassword);
-router.post('/reset-password', resetPasswordValidation, validationErrorHandler, resetPassword);
+router.post('/register', registerValidation, validationErrorHandler, register);
+router.post('/login', loginValidation, validationErrorHandler, login);
 
-// Protected routes
+// Protected auth routes
 router.get('/me', protect, getMe);
-router.put('/profile', protect, updateProfileValidation, validationErrorHandler, updateProfile);
-router.put('/password', protect, updatePasswordValidation, validationErrorHandler, updatePassword);
 router.post('/logout', protect, logout);
-
-// Admin only routes
-router.get('/users', protect, authorize('admin'), getUsers);
-router.get('/users/:id', protect, authorize('admin'), getUser);
-router.put('/users/:id/role', protect, authorize('admin'), updateUserRoleValidation, validationErrorHandler, updateUserRole);
-router.delete('/users/:id', protect, authorize('admin'), deleteUser);
+router.put('/password', protect, passwordChangeValidation, validationErrorHandler, changePassword);
+router.put('/email', protect, emailChangeValidation, validationErrorHandler, changeEmail);
+router.post('/reauth', protect, reauthValidation, validationErrorHandler, reauthenticate);
 
 export default router;

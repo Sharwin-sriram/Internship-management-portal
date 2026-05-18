@@ -3,7 +3,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
-import loginRoutes from "./routes/loginRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import passwordResetRoutes from "./routes/passwordReset.routes.js";
 import { startTokenCleanup } from "./utils/scheduler.js";
@@ -33,7 +33,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use("/api/auth", loginRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/password-reset", passwordResetRoutes);
 
@@ -48,7 +48,13 @@ app.get("/", (req, res) => {
       health: "GET /health",
       test: "GET /api/test",
       auth: {
+        register: "POST /api/auth/register",
         login: "POST /api/auth/login",
+        logout: "POST /api/auth/logout",
+        me: "GET /api/auth/me",
+        changePassword: "PUT /api/auth/password",
+        changeEmail: "PUT /api/auth/email",
+        reauth: "POST /api/auth/reauth",
       },
       companies: "GET /api/companies",
       passwordReset: {
@@ -67,7 +73,13 @@ app.get("/api/test", (req, res) => {
     message: "API is working",
     timestamp: new Date().toISOString(),
     routes: [
+      "POST /api/auth/register",
       "POST /api/auth/login",
+      "GET /api/auth/me",
+      "POST /api/auth/logout",
+      "PUT /api/auth/password",
+      "PUT /api/auth/email",
+      "POST /api/auth/reauth",
       "GET /api/companies",
       "POST /api/password-reset/request",
       "POST /api/password-reset/validate",

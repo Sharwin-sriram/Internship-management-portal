@@ -1,5 +1,6 @@
 import express from "express";
 import User from "../models/User.js";
+import { logAuthEvent, AuthEventType, AuthEventStatus } from "../services/authLog.service.js";
 
 // Helper for sending token response
 const sendTokenResponse = async (user, statusCode, res) => {
@@ -45,6 +46,14 @@ export const login = async (req, res) => {
     const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
+      await logAuthEvent({
+        userId: null,
+        eventType: AuthEventType.LOGIN_FAILED,
+        status: AuthEventStatus.FAILED,
+        req,
+        metadata: { email },
+      });
+
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
@@ -54,14 +63,38 @@ export const login = async (req, res) => {
     const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {
+      await logAuthEvent({
+        userId: user._id,
+        eventType: AuthEventType.LOGIN_FAILED,
+        status: AuthEventStatus.FAILED,
+        req,
+        metadata: { email },
+      });
+
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
       });
     }
 
+    await logAuthEvent({
+      userId: user._id,
+      eventType: AuthEventType.LOGIN_SUCCESS,
+      status: AuthEventStatus.SUCCESS,
+      req,
+      metadata: { email },
+    });
+
     await sendTokenResponse(user, 200, res);
   } catch (error) {
+    await logAuthEvent({
+      userId: null,
+      eventType: AuthEventType.LOGIN_FAILED,
+      status: AuthEventStatus.FAILED,
+      req,
+      metadata: { error: error.message },
+    });
+
     res.status(500).json({
       success: false,
       message: "Server error during login",
@@ -122,6 +155,15 @@ export const getMe = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
+    if (req.user && req.user._id) {
+      await logAuthEvent({
+        userId: req.user._id,
+        eventType: AuthEventType.LOGOUT,
+        status: AuthEventStatus.SUCCESS,
+        req,
+      });
+    }
+
     res.cookie("token", "none", {
       expires: new Date(Date.now() + 10 * 1000),
       httpOnly: true,
@@ -132,6 +174,14 @@ export const logout = async (req, res) => {
       data: {},
     });
   } catch (error) {
+    await logAuthEvent({
+      userId: req.user?._id || null,
+      eventType: AuthEventType.LOGOUT,
+      status: AuthEventStatus.FAILED,
+      req,
+      metadata: { error: error.message },
+    });
+
     res.status(500).json({
       success: false,
       message: "Server error during logout",
