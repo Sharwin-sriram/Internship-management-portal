@@ -1,71 +1,71 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import Button from './ui/Button';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import Button from "./ui/Button";
 
 export default function Header() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
-  const isDashboardRoute = pathname.startsWith('/dashboard');
+  const isDashboardRoute = pathname.startsWith("/dashboard");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const navLinks = user
-    ? [{ href: '/dashboard', label: 'Dashboard' }]
+    ? [{ href: "/dashboard", label: "Dashboard" }]
     : isDashboardRoute
-      ? [{ href: '/', label: 'Home' }]
+      ? [{ href: "/", label: "Home" }]
       : [
-          { href: '/', label: 'Home' },
-          { href: '/login', label: 'Sign in' },
+          { href: "/", label: "Home" },
+          { href: "/login", label: "Sign in" },
         ];
 
   return (
     <header
       style={{
-        position: 'sticky',
+        position: "sticky",
         top: 0,
         zIndex: 100,
         height: 64,
         background: scrolled
-          ? 'rgba(255,255,255,0.92)'
-          : 'rgba(255,255,255,0.7)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+          ? "rgba(255,255,255,0.92)"
+          : "rgba(255,255,255,0.7)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
         borderBottom: scrolled
-          ? '1px solid var(--color-border)'
-          : '1px solid transparent',
+          ? "1px solid var(--color-border)"
+          : "1px solid transparent",
         transition:
-          'background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base)',
-        boxShadow: scrolled ? 'var(--shadow-sm)' : 'none',
+          "background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base)",
+        boxShadow: scrolled ? "var(--shadow-sm)" : "none",
       }}
     >
       <div
         style={{
-          maxWidth: 'var(--max-width)',
-          margin: '0 auto',
-          padding: '0 var(--space-lg)',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          maxWidth: "var(--max-width)",
+          margin: "0 auto",
+          padding: "0 var(--space-lg)",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
         {/* Logo */}
         <Link
           href="/"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            textDecoration: 'none',
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            textDecoration: "none",
           }}
         >
           <div
@@ -73,11 +73,11 @@ export default function Header() {
               width: 36,
               height: 36,
               borderRadius: 10,
-              background: 'var(--gradient-brand)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(34,151,250,0.3)',
+              background: "var(--gradient-brand)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 12px rgba(34,151,250,0.3)",
             }}
           >
             <svg
@@ -98,12 +98,12 @@ export default function Header() {
           <span
             style={{
               fontWeight: 800,
-              fontSize: 'var(--font-size-lg)',
-              background: 'var(--gradient-brand)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              letterSpacing: '-0.02em',
+              fontSize: "var(--font-size-lg)",
+              background: "var(--gradient-brand)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              letterSpacing: "-0.02em",
             }}
           >
             InternHub
@@ -113,9 +113,9 @@ export default function Header() {
         {/* Desktop Nav */}
         <nav
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-sm)',
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--space-sm)",
           }}
         >
           {navLinks.map((link) => {
@@ -125,14 +125,18 @@ export default function Header() {
                 key={link.href}
                 href={link.href}
                 style={{
-                  padding: '6px 14px',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: 'var(--font-size-sm)',
+                  padding: "6px 14px",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: "var(--font-size-sm)",
                   fontWeight: isActive ? 600 : 500,
-                  color: isActive ? 'var(--color-primary)' : 'var(--color-muted)',
-                  background: isActive ? 'var(--color-primary-10)' : 'transparent',
-                  transition: 'all var(--transition-fast)',
-                  textDecoration: 'none',
+                  color: isActive
+                    ? "var(--color-primary)"
+                    : "var(--color-muted)",
+                  background: isActive
+                    ? "var(--color-primary-10)"
+                    : "transparent",
+                  transition: "all var(--transition-fast)",
+                  textDecoration: "none",
                 }}
               >
                 {link.label}
@@ -141,39 +145,45 @@ export default function Header() {
           })}
 
           {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-sm)",
+              }}
+            >
               <div
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '4px 12px 4px 4px',
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "4px 12px 4px 4px",
                   borderRadius: 999,
-                  background: 'var(--color-primary-10)',
-                  border: '1px solid var(--color-primary-20)',
+                  background: "var(--color-primary-10)",
+                  border: "1px solid var(--color-primary-20)",
                 }}
               >
                 <div
                   style={{
                     width: 28,
                     height: 28,
-                    borderRadius: '50%',
-                    background: 'var(--gradient-brand)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: 'var(--font-size-xs)',
+                    borderRadius: "50%",
+                    background: "var(--gradient-brand)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "white",
+                    fontSize: "var(--font-size-xs)",
                     fontWeight: 700,
                   }}
                 >
-                  {user.name?.charAt(0)?.toUpperCase() ?? 'U'}
+                  {user.name?.charAt(0)?.toUpperCase() ?? "U"}
                 </div>
                 <span
                   style={{
-                    fontSize: 'var(--font-size-sm)',
+                    fontSize: "var(--font-size-sm)",
                     fontWeight: 600,
-                    color: 'var(--color-primary)',
+                    color: "var(--color-primary)",
                   }}
                 >
                   {user.name}
