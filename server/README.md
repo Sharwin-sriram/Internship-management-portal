@@ -20,6 +20,8 @@ server/
 └── package.json
 ```
 
+The core portal entity model stubs live in `src/models` and use one file per entity: `user`, `student`, `company`, `internship`, `application`, `interview`, `document`, and `notification`.
+
 ## Getting Started
 
 1. Install dependencies:
