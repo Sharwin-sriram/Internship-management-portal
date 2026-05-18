@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { AuthUser, getStoredUser, saveAuth, clearAuth } from '../lib/auth';
 import { postJson } from '../lib/api';
 
@@ -19,14 +19,8 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const stored = getStoredUser();
-    setUser(stored);
-    setIsLoading(false);
-  }, []);
+  const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
+  const isLoading = false;
 
   async function login(email: string, password: string): Promise<string | null> {
     const res = await postJson<{ data: AuthUser }>('/auth/login', { email, password });
