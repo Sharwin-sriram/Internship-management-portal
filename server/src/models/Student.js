@@ -1,0 +1,42 @@
+import mongoose from "mongoose";
+
+const studentSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    college: {
+      type: String,
+      required: true,
+    },
+    branch: {
+      type: String,
+      required: true,
+    },
+    cgpa: {
+      type: Number,
+      required: true,
+    },
+    graduation_year: {
+      type: Number,
+      required: true,
+    },
+    skills: [
+      {
+        type: String,
+      },
+    ],
+    placement_eligible: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  {
+    timestamps: true,
+  },
+);
+
+const Student = mongoose.model("Student", studentSchema);
+export default Student;

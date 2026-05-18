@@ -1,9 +1,9 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import connectDB from "./src/config/db.js";
-import loginRoutes from "./src/routes/loginRoutes.js";
-import envConfig from "./src/config/env.js";
+import connectDB from "./config/db.js";
+import loginRoutes from "./routes/loginRoutes.js";
+import envConfig from "./config/env.js";
 
 const app = express();
 
