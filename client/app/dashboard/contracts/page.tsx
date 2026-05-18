@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 
 export default function ContractsPage() {
@@ -15,67 +15,14 @@ export default function ContractsPage() {
   const [roleTitle, setRoleTitle] = useState('Software Engineering Intern');
   const [duration, setDuration] = useState('3 Months (June 1 - Aug 31, 2026)');
 
-  const [signature, setSignature] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
   
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Canvas drawing handlers
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    setIsDrawing(true);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    // get coordinates
-    const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    ctx.beginPath();
-    ctx.moveTo(clientX - rect.left, clientY - rect.top);
-  };
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-    ctx.lineTo(clientX - rect.left, clientY - rect.top);
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-    if (canvasRef.current) {
-      setSignature(canvasRef.current.toDataURL());
-    }
-  };
-
-  const clearSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setSignature(null);
-  };
-
   const handleSubmit = () => {
-    if (!signature) {
-      alert('Please provide a signature before submitting.');
+    if (!signatureFile) {
+      alert('Please upload a signature document (PDF, Word, or Image) before submitting.');
       return;
     }
     setSubmitting(true);
@@ -158,40 +105,66 @@ export default function ContractsPage() {
                 <div>
                   <p style={{ fontWeight: 'bold', marginBottom: 'var(--space-sm)' }}>For {isStudent ? 'Company' : 'Student'}:</p>
                   <div style={{ padding: 'var(--space-md)', borderBottom: '1px solid black', fontFamily: 'cursive', fontSize: '1.2rem', color: '#6b7280', minHeight: '60px' }}>
-                    {isStudent ? 'Jane Smith (HR)' : 'John Doe'}
+                    {isStudent ? `${companyName} (HR)` : studentName}
                   </div>
-                  <p style={{ fontSize: '0.8rem', marginTop: 4 }}>Date: 2026-05-18</p>
+                  <p style={{ fontSize: '0.8rem', marginTop: 4 }}>Date: {new Date().toISOString().split('T')[0]}</p>
                 </div>
                 
                 {/* User Signature */}
                 <div>
                   <p style={{ fontWeight: 'bold', marginBottom: 'var(--space-sm)' }}>Your Signature ({user?.name || 'Signer'}):</p>
-                  <div style={{ position: 'relative' }}>
-                    <canvas
-                      ref={canvasRef}
-                      width={300}
-                      height={100}
-                      onMouseDown={startDrawing}
-                      onMouseMove={draw}
-                      onMouseUp={stopDrawing}
-                      onMouseOut={stopDrawing}
-                      onTouchStart={startDrawing}
-                      onTouchMove={draw}
-                      onTouchEnd={stopDrawing}
-                      style={{ 
-                        border: '1px solid var(--color-border)', 
-                        borderRadius: 'var(--radius-sm)', 
-                        background: '#fafafa',
-                        cursor: 'crosshair',
-                        touchAction: 'none'
+                  <div style={{ 
+                    border: '2px dashed var(--color-border)', 
+                    borderRadius: 'var(--radius-sm)', 
+                    background: '#fafafa',
+                    padding: 'var(--space-md)',
+                    textAlign: 'center'
+                  }}>
+                    <input 
+                      type="file" 
+                      id="signature-upload"
+                      accept=".pdf,.doc,.docx,image/png,image/jpeg" 
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setSignatureFile(e.target.files[0]);
+                        }
                       }}
+                      style={{ display: 'none' }}
                     />
-                    <button 
-                      onClick={clearSignature}
-                      style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.1)', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
+                    <label 
+                      htmlFor="signature-upload" 
+                      style={{ 
+                        display: 'inline-block',
+                        padding: '8px 16px',
+                        background: 'white',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        transition: 'border-color var(--transition-fast)'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-border)'}
                     >
-                      Clear
-                    </button>
+                      Upload Signature
+                    </label>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--color-subtle)', marginTop: 8 }}>
+                      Supports PDF, Word, JPG, PNG
+                    </p>
+                    
+                    {signatureFile && (
+                      <div style={{ marginTop: 12, padding: '8px', background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          📄 {signatureFile.name}
+                        </span>
+                        <button 
+                          onClick={() => setSignatureFile(null)}
+                          style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', fontWeight: 'bold' }}
+                          title="Remove file"
+                        >✕</button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

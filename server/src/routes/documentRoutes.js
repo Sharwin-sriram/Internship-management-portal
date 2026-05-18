@@ -3,6 +3,13 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { protect, authorize } from '../middlewares/auth.js';
+import {
+  uploadDocument,
+  getDocuments,
+  deleteDocument,
+  verifyDocument
+} from '../controllers/documentController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,133 +57,20 @@ const upload = multer({
   }
 });
 
-// POST /api/documents/upload - Upload a document
-router.post('/upload', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded'
-      });
-    }
+// Apply protection to all routes below
+router.use(protect);
 
-    const { documentType } = req.body;
+// Routes
+router.route('/')
+  .get(getDocuments);
 
-    if (!documentType) {
-      // Delete the uploaded file if documentType is missing
-      fs.unlinkSync(req.file.path);
-      return res.status(400).json({
-        success: false,
-        message: 'Document type is required'
-      });
-    }
+router.route('/upload')
+  .post(upload.single('file'), uploadDocument);
 
-    // Valid document types
-    const validTypes = ['resume', 'cover_letter', 'certificate', 'id_proof'];
-    if (!validTypes.includes(documentType)) {
-      // Delete the uploaded file if documentType is invalid
-      fs.unlinkSync(req.file.path);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid document type'
-      });
-    }
+router.route('/:id')
+  .delete(deleteDocument);
 
-    // Return success response with file details
-    res.status(200).json({
-      success: true,
-      message: 'File uploaded successfully',
-      data: {
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        mimetype: req.file.mimetype,
-        size: req.file.size,
-        documentType: documentType,
-        path: req.file.path,
-        uploadedAt: new Date().toISOString()
-      }
-    });
-
-  } catch (error) {
-    console.error('Upload error:', error);
-    
-    // Delete the file if it was uploaded but processing failed
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
-
-    res.status(500).json({
-      success: false,
-      message: error.message || 'File upload failed'
-    });
-  }
-});
-
-// GET /api/documents - Get all uploaded documents (placeholder)
-router.get('/', async (req, res) => {
-  try {
-    const uploadDir = path.join(__dirname, '../../uploads');
-    
-    if (!fs.existsSync(uploadDir)) {
-      return res.status(200).json({
-        success: true,
-        data: []
-      });
-    }
-
-    const files = fs.readdirSync(uploadDir);
-    const documents = files.map(filename => {
-      const filePath = path.join(uploadDir, filename);
-      const stats = fs.statSync(filePath);
-      
-      return {
-        filename,
-        size: stats.size,
-        uploadedAt: stats.birthtime
-      };
-    });
-
-    res.status(200).json({
-      success: true,
-      data: documents
-    });
-
-  } catch (error) {
-    console.error('Error fetching documents:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch documents'
-    });
-  }
-});
-
-// DELETE /api/documents/:filename - Delete a document
-router.delete('/:filename', async (req, res) => {
-  try {
-    const { filename } = req.params;
-    const filePath = path.join(__dirname, '../../uploads', filename);
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not found'
-      });
-    }
-
-    fs.unlinkSync(filePath);
-
-    res.status(200).json({
-      success: true,
-      message: 'File deleted successfully'
-    });
-
-  } catch (error) {
-    console.error('Delete error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete file'
-    });
-  }
-});
+router.route('/:id/verify')
+  .put(authorize('coordinator', 'admin'), verifyDocument);
 
 export default router;

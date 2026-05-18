@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../context/AuthContext';
+import { getJson, postForm } from '../../../../lib/api';
 
 type DocType = 'Resume' | 'Cover Letter' | 'Certificates' | 'ID Proofs';
 
@@ -12,12 +13,23 @@ interface DocumentVersion {
   uploadDate: string;
   uploadedBy: string;
   size: number;
+  url?: string;
 }
 
 interface DocumentItem {
   type: DocType;
   currentVersion: DocumentVersion | null;
   history: DocumentVersion[];
+}
+
+interface BackendDocument {
+  _id: string;
+  doc_type: string;
+  storage_url: string;
+  version: number;
+  is_verified: boolean;
+  createdAt: string;
+  user: any;
 }
 
 const initialDocs: DocumentItem[] = [
@@ -41,6 +53,70 @@ export default function DocumentUploadPage() {
 
   const activeDoc = documents.find(d => d.type === activeTab)!;
 
+  const fetchDocuments = useCallback(async () => {
+    const res = await getJson<{ success: boolean, data: BackendDocument[] }>('/documents');
+    if (res.ok && res.body?.success) {
+      const docsFromBackend = res.body.data;
+      
+      const newDocs: DocumentItem[] = [
+        { type: 'Resume', currentVersion: null, history: [] },
+        { type: 'Cover Letter', currentVersion: null, history: [] },
+        { type: 'Certificates', currentVersion: null, history: [] },
+        { type: 'ID Proofs', currentVersion: null, history: [] },
+      ];
+
+      const typeMap: Record<string, DocType> = {
+        'resume': 'Resume',
+        'cover_letter': 'Cover Letter',
+        'certificate': 'Certificates',
+        'id_proof': 'ID Proofs'
+      };
+
+      docsFromBackend.forEach(doc => {
+        const frontendType = typeMap[doc.doc_type];
+        if (frontendType) {
+          const docItem = newDocs.find(d => d.type === frontendType)!;
+          const fileName = doc.storage_url.split('/').pop() || 'document';
+          
+          // Decode URL encoded filename components if possible
+          let decodedName = fileName;
+          try {
+             decodedName = decodeURIComponent(fileName.split('-').slice(0, -1).join('-') || fileName);
+          } catch (e) {
+             // fallback
+          }
+
+          const versionObj: DocumentVersion = {
+            id: doc._id,
+            version: doc.version,
+            fileName: decodedName,
+            uploadDate: new Date(doc.createdAt).toISOString().split('T')[0],
+            uploadedBy: doc.user?.name || user?.name || 'Student',
+            size: 0, // Not provided by the backend listing currently
+            url: `http://localhost:9933${doc.storage_url}`
+          };
+
+          docItem.history.push(versionObj);
+        }
+      });
+
+      // Sort history descending by version
+      newDocs.forEach(doc => {
+        if (doc.history.length > 0) {
+          doc.history.sort((a, b) => b.version - a.version);
+          doc.currentVersion = doc.history[0];
+          doc.history = doc.history.slice(1);
+        }
+      });
+
+      setDocuments(newDocs);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
   const validateFile = (file: File) => {
     const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
     if (!validTypes.includes(file.type)) {
@@ -52,7 +128,7 @@ export default function DocumentUploadPage() {
     return null;
   };
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     const err = validateFile(file);
     if (err) {
       setError(err);
@@ -63,42 +139,38 @@ export default function DocumentUploadPage() {
     setUploading(true);
     setUploadProgress(0);
 
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          finishUpload(file);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
-  };
-
-  const finishUpload = (file: File) => {
-    setUploading(false);
-    setUploadProgress(0);
-
-    const newVersion: DocumentVersion = {
-      id: Math.random().toString(36).substring(7),
-      version: (activeDoc.currentVersion?.version || 0) + 1,
-      fileName: file.name,
-      uploadDate: new Date().toISOString().split('T')[0],
-      uploadedBy: user?.name || 'Student',
-      size: file.size,
+    const docTypeMap: Record<DocType, string> = {
+      'Resume': 'resume',
+      'Cover Letter': 'cover_letter',
+      'Certificates': 'certificate',
+      'ID Proofs': 'id_proof'
     };
 
-    setDocuments(prev => prev.map(d => {
-      if (d.type === activeTab) {
-        return {
-          ...d,
-          currentVersion: newVersion,
-          history: d.currentVersion ? [d.currentVersion, ...d.history] : d.history,
-        };
-      }
-      return d;
-    }));
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('documentType', docTypeMap[activeTab]);
+
+    // Simulated progress just for UX
+    const interval = setInterval(() => {
+      setUploadProgress(prev => prev >= 90 ? 90 : prev + 10);
+    }, 200);
+
+    const res = await postForm('/documents/upload', formData);
+    
+    clearInterval(interval);
+    setUploadProgress(100);
+    
+    if (res.ok) {
+      setTimeout(() => {
+        setUploading(false);
+        setUploadProgress(0);
+        fetchDocuments(); // Refresh the list
+      }, 500);
+    } else {
+      setUploading(false);
+      setUploadProgress(0);
+      setError((res.body as any)?.message || 'Upload failed');
+    }
   };
 
   const onDragOver = (e: React.DragEvent) => {
@@ -117,22 +189,9 @@ export default function DocumentUploadPage() {
   };
 
   const restoreVersion = (version: DocumentVersion) => {
-    setDocuments(prev => prev.map(d => {
-      if (d.type === activeTab) {
-        // Move current to history, set selected as current
-        const newHistory = d.history.filter(v => v.id !== version.id);
-        if (d.currentVersion) newHistory.unshift(d.currentVersion);
-        // sort by version descending
-        newHistory.sort((a, b) => b.version - a.version);
-        
-        return {
-          ...d,
-          currentVersion: version,
-          history: newHistory,
-        };
-      }
-      return d;
-    }));
+    // In a full implementation, you would make an API call to set this version as active
+    // or duplicate it as a new version.
+    alert('Restoring older versions via API is not fully implemented yet.');
   };
 
   return (
@@ -196,7 +255,12 @@ export default function DocumentUploadPage() {
               ref={fileInputRef}
               style={{ display: 'none' }}
               accept=".pdf,.docx,.jpg,.png"
-              onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handleFileUpload(e.target.files[0]);
+                  e.target.value = ''; // Reset input to allow re-uploading the same file
+                }
+              }}
             />
             <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-sm)' }}>📁</div>
             <h3 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-xs)' }}>
@@ -225,9 +289,17 @@ export default function DocumentUploadPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', padding: 'var(--space-md)', border: '1px solid var(--color-primary-20)', borderRadius: 'var(--radius)', background: 'var(--color-primary-10)' }}>
                 <div style={{ fontSize: '2rem' }}>📄</div>
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontWeight: 600 }}>{activeDoc.currentVersion.fileName}</p>
+                  <p style={{ fontWeight: 600 }}>
+                    {activeDoc.currentVersion.url ? (
+                      <a href={activeDoc.currentVersion.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
+                        {activeDoc.currentVersion.fileName}
+                      </a>
+                    ) : (
+                      activeDoc.currentVersion.fileName
+                    )}
+                  </p>
                   <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-muted)' }}>
-                    v{activeDoc.currentVersion.version} • Uploaded on {activeDoc.currentVersion.uploadDate} by {activeDoc.currentVersion.uploadedBy} • {(activeDoc.currentVersion.size / 1024).toFixed(1)} KB
+                    v{activeDoc.currentVersion.version} • Uploaded on {activeDoc.currentVersion.uploadDate} by {activeDoc.currentVersion.uploadedBy}
                   </p>
                 </div>
               </div>
@@ -244,7 +316,15 @@ export default function DocumentUploadPage() {
                 {activeDoc.history.map(v => (
                   <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-md)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)' }}>
                     <div>
-                      <p style={{ fontWeight: 500, fontSize: 'var(--font-size-sm)' }}>{v.fileName}</p>
+                      <p style={{ fontWeight: 500, fontSize: 'var(--font-size-sm)' }}>
+                        {v.url ? (
+                          <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
+                            {v.fileName}
+                          </a>
+                        ) : (
+                          v.fileName
+                        )}
+                      </p>
                       <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-subtle)' }}>
                         v{v.version} • {v.uploadDate}
                       </p>

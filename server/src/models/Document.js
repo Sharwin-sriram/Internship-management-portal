@@ -9,7 +9,7 @@ const documentSchema = new mongoose.Schema(
     },
     doc_type: {
       type: String,
-      enum: ["resume", "transcript", "id_proof", "offer_letter", "other"],
+      enum: ["resume", "transcript", "id_proof", "offer_letter", "cover_letter", "certificate", "other"],
       required: true,
     },
     storage_url: {
