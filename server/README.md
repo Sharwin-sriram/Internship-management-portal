@@ -34,6 +34,24 @@ npm install
 npm start
 ```
 
+## Sample Data
+
+This project uses MongoDB Atlas as the cloud database. Do not use local SQLite for team development.
+
+1. Set your Atlas connection string in `server/.env`:
+```env
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/internship?retryWrites=true&w=majority
+```
+
+2. Populate the Atlas database with sample records:
+```bash
+npm run seed-mongo
+```
+
+This script will create example users, a student, a company, one internship, one application, an interview, a document, and notifications.
+
+> If your connection fails with `querySrv` or DNS errors, use Atlas' non-SRV connection string instead of `mongodb+srv://`.
+
 ## API Endpoints
 
 ### Auth

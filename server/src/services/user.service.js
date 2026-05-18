@@ -1,29 +1,23 @@
 const User = require('../models/user.model');
 
 exports.getAllUsers = async () => {
-  return await User.findAll();
+  return await User.find();
 };
 
 exports.getUserById = async (id) => {
   const user = await User.findById(id);
-  if (!user) {
-    throw new Error('User not found');
-  }
+  if (!user) throw new Error('User not found');
   return user;
 };
 
 exports.updateUser = async (id, data) => {
-  const user = await User.update(id, data);
-  if (!user) {
-    throw new Error('User not found');
-  }
+  const user = await User.findByIdAndUpdate(id, data, { new: true });
+  if (!user) throw new Error('User not found');
   return user;
 };
 
 exports.deleteUser = async (id) => {
-  const result = await User.delete(id);
-  if (!result) {
-    throw new Error('User not found');
-  }
-  return result;
+  const user = await User.findByIdAndDelete(id);
+  if (!user) throw new Error('User not found');
+  return true;
 };
