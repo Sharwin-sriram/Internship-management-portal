@@ -24,7 +24,7 @@ export function FormField({ label, id, error, hint, children }: FormFieldProps) 
       >
         {label}
       </label>
-      {React.cloneElement(children, { id })}
+      {React.cloneElement(children, { id } as React.HTMLAttributes<HTMLElement>)}
       {hint && !error && (
         <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-muted)' }}>
           {hint}

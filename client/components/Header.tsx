@@ -10,7 +10,6 @@ export default function Header() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);

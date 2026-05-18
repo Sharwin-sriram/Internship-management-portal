@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { postJson } from '../../lib/api';
 import AuthCard from '../../components/ui/AuthCard';
-import { FormField, Input, Select } from '../../components/ui/FormField';
+import { FormField, Input } from '../../components/ui/FormField';
 import Button from '../../components/ui/Button';
 
 type Role = 'student' | 'company';
