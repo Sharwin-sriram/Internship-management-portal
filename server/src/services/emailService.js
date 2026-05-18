@@ -1,6 +1,15 @@
-const nodemailer = require('nodemailer');
-const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, FRONTEND_URL } = require('../config/env');
-const logger = require('../utils/logger');
+import nodemailer from "nodemailer";
+import env from "../config/env.js";
+import logger from "../utils/logger.js";
+
+const {
+  EMAIL_HOST,
+  EMAIL_PORT,
+  EMAIL_USER,
+  EMAIL_PASS,
+  EMAIL_FROM,
+  FRONTEND_URL,
+} = env;
 
 class EmailService {
   constructor() {
@@ -11,18 +20,18 @@ class EmailService {
       secure: EMAIL_PORT === 465, // true for 465, false for other ports
       auth: {
         user: EMAIL_USER,
-        pass: EMAIL_PASS
-      }
+        pass: EMAIL_PASS,
+      },
     });
   }
 
   async sendPasswordResetEmail(email, token, userName) {
     const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
-    
+
     const mailOptions = {
       from: EMAIL_FROM,
       to: email,
-      subject: 'Password Reset Request',
+      subject: "Password Reset Request",
       html: `
         <!DOCTYPE html>
         <html>
@@ -51,7 +60,7 @@ class EmailService {
               <h1>Password Reset Request</h1>
             </div>
             <div class="content">
-              <p>Hello ${userName || 'User'},</p>
+              <p>Hello ${userName || "User"},</p>
               <p>We received a request to reset your password. Click the button below to create a new password:</p>
               <div style="text-align: center;">
                 <a href="${resetUrl}" class="button">Reset Password</a>
@@ -72,7 +81,7 @@ class EmailService {
       text: `
         Password Reset Request
         
-        Hello ${userName || 'User'},
+        Hello ${userName || "User"},
         
         We received a request to reset your password. Click the link below to create a new password:
         
@@ -81,7 +90,7 @@ class EmailService {
         This link will expire in 1 hour.
         
         If you didn't request a password reset, please ignore this email.
-      `
+      `,
     };
 
     try {
@@ -89,8 +98,10 @@ class EmailService {
       logger.info(`Password reset email sent to ${email}: ${info.messageId}`);
       return { success: true, messageId: info.messageId };
     } catch (error) {
-      logger.error(`Failed to send password reset email to ${email}: ${error.message}`);
-      throw new Error('Failed to send password reset email');
+      logger.error(
+        `Failed to send password reset email to ${email}: ${error.message}`,
+      );
+      throw new Error("Failed to send password reset email");
     }
   }
 
@@ -98,7 +109,7 @@ class EmailService {
     const mailOptions = {
       from: EMAIL_FROM,
       to: email,
-      subject: 'Password Successfully Reset',
+      subject: "Password Successfully Reset",
       html: `
         <!DOCTYPE html>
         <html>
@@ -117,7 +128,7 @@ class EmailService {
               <h1>✓ Password Reset Successful</h1>
             </div>
             <div class="content">
-              <p>Hello ${userName || 'User'},</p>
+              <p>Hello ${userName || "User"},</p>
               <p>Your password has been successfully reset.</p>
               <p>If you did not make this change, please contact our support team immediately.</p>
               <p>For security reasons, we recommend:</p>
@@ -138,20 +149,24 @@ class EmailService {
       text: `
         Password Reset Successful
         
-        Hello ${userName || 'User'},
+        Hello ${userName || "User"},
         
         Your password has been successfully reset.
         
         If you did not make this change, please contact our support team immediately.
-      `
+      `,
     };
 
     try {
       const info = await this.transporter.sendMail(mailOptions);
-      logger.info(`Password reset confirmation sent to ${email}: ${info.messageId}`);
+      logger.info(
+        `Password reset confirmation sent to ${email}: ${info.messageId}`,
+      );
       return { success: true, messageId: info.messageId };
     } catch (error) {
-      logger.error(`Failed to send confirmation email to ${email}: ${error.message}`);
+      logger.error(
+        `Failed to send confirmation email to ${email}: ${error.message}`,
+      );
       // Don't throw error for confirmation emails
       return { success: false };
     }
@@ -161,12 +176,14 @@ class EmailService {
     try {
       // Skip verification if email credentials are not configured
       if (!EMAIL_USER || !EMAIL_PASS) {
-        logger.warn('Email credentials not configured. Email service disabled.');
+        logger.warn(
+          "Email credentials not configured. Email service disabled.",
+        );
         return false;
       }
-      
+
       await this.transporter.verify();
-      logger.info('Email service connection verified');
+      logger.info("Email service connection verified");
       return true;
     } catch (error) {
       logger.error(`Email service connection failed: ${error.message}`);
@@ -175,4 +192,4 @@ class EmailService {
   }
 }
 
-module.exports = new EmailService();
+export default new EmailService();
