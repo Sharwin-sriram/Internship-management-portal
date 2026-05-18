@@ -88,11 +88,6 @@ app.get("/api/test", (req, res) => {
   });
 });
 
-// Health check
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
 // 404 handler
 app.use((req, res) => {
   res
