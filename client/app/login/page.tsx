@@ -333,24 +333,19 @@ export default function LoginPage() {
           {/* ─── Card ────────────────────────────────────── */}
           <div style={cardStyle} className={isLocked ? 'locked-card' : ''}>
 
-            {/* Logo / Lock icon */}
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <div style={{
-                width: 64, height: 64, borderRadius: 18,
-                background: isLocked
-                  ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
-                  : 'linear-gradient(135deg, #2297FA 0%, #8082D6 100%)',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: isLocked
-                  ? '0 8px 24px rgba(239,68,68,0.35)'
-                  : '0 8px 24px rgba(34,151,250,0.35)',
-                transition: 'all 0.4s ease',
-              }}
-                className={isLocked ? 'lock-icon-anim' : ''}
-              >
-                <LockIcon size={28} color="#fff" />
+            {/* Logo / Lock icon — hidden when locked */}
+            {!isLocked && (
+              <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: 18,
+                  background: 'linear-gradient(135deg, #2297FA 0%, #8082D6 100%)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 8px 24px rgba(34,151,250,0.35)',
+                }}>
+                  <LockIcon size={28} color="#fff" />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Title */}
             <h1 style={{
@@ -375,55 +370,43 @@ export default function LoginPage() {
               <div style={{ animation: 'fadeSlideDown 0.4s ease both' }}>
                 {/* Lock banner */}
                 <div style={{
-                  padding: '18px 20px', borderRadius: 14,
-                  background: 'linear-gradient(135deg, rgba(239,68,68,0.08) 0%, rgba(220,38,38,0.06) 100%)',
-                  border: '1.5px solid rgba(239,68,68,0.25)',
+                  padding: '20px 22px', borderRadius: 14,
+                  background: 'linear-gradient(135deg, rgba(239,68,68,0.10) 0%, rgba(185,28,28,0.07) 100%)',
+                  border: '2px solid rgba(239,68,68,0.35)',
                   marginBottom: 24, textAlign: 'center',
+                  boxShadow: '0 4px 20px rgba(239,68,68,0.12)',
                 }}>
                   <div style={{
-                    fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.08em',
-                    textTransform: 'uppercase', color: '#dc2626', marginBottom: 8,
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '4px 14px', borderRadius: 20,
+                    background: 'rgba(239,68,68,0.12)',
+                    marginBottom: 12,
                   }}>
-                    🔒 Security Alert
+                    <span style={{ fontSize: '1rem' }}>🔒</span>
+                    <span style={{
+                      fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em',
+                      textTransform: 'uppercase', color: '#dc2626',
+                    }}>Security Alert</span>
                   </div>
                   <p style={{
-                    margin: 0, fontSize: '0.9375rem', fontWeight: 600,
-                    color: '#991b1b', lineHeight: 1.55,
+                    margin: '0 0 6px',
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                    color: '#b91c1c',
+                    lineHeight: 1.5,
+                    letterSpacing: '-0.01em',
                   }}>
-                    Account locked due to multiple failed attempts.
+                    Your account has been locked due to multiple failed login attempts.
                   </p>
                   <p style={{
                     margin: '8px 0 0', fontSize: '0.8125rem',
-                    color: '#b91c1c', lineHeight: 1.5,
+                    color: '#dc2626', lineHeight: 1.55, fontWeight: 500,
                   }}>
-                    {MAX_ATTEMPTS} consecutive failed logins detected. Choose an option below to regain access.
+                    {MAX_ATTEMPTS} consecutive failed logins detected. Use the options below to regain access.
                   </p>
                 </div>
 
-                {/* Disabled form (greyed out) */}
-                <div style={{ opacity: 0.45, pointerEvents: 'none', marginBottom: 24 }}>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={labelStyle}>Username</label>
-                    <div style={inputWrapperStyle('username-locked')}>
-                      <span style={iconInInputStyle}><UserIcon /></span>
-                      <input style={inputStyle} disabled placeholder="Locked" value="" readOnly />
-                    </div>
-                  </div>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={labelStyle}>Password</label>
-                    <div style={inputWrapperStyle('password-locked')}>
-                      <span style={iconInInputStyle}><LockIcon size={18} /></span>
-                      <input style={inputStyle} type="password" disabled placeholder="••••••••" value="" readOnly />
-                    </div>
-                  </div>
-                  <button disabled className="submit-btn" style={{
-                    background: '#9ca3af',
-                    boxShadow: 'none',
-                  }}>
-                    <LockIcon size={16} color="#fff" />
-                    Sign in (Locked)
-                  </button>
-                </div>
+
 
                 {/* Divider */}
                 <div style={{
