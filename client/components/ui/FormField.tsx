@@ -7,7 +7,7 @@ interface FormFieldProps {
   id: string;
   error?: string;
   hint?: string;
-  children: React.ReactElement;
+  children: React.ReactElement<any, any>;
 }
 
 export function FormField({ label, id, error, hint, children }: FormFieldProps) {
@@ -24,7 +24,7 @@ export function FormField({ label, id, error, hint, children }: FormFieldProps) 
       >
         {label}
       </label>
-      {React.cloneElement(children as React.ReactElement<any>, { id })}
+      {React.cloneElement(children, { id } as React.HTMLAttributes<HTMLElement>)}
       {hint && !error && (
         <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-muted)' }}>
           {hint}

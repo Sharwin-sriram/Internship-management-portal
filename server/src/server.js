@@ -1,28 +1,123 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import loginRoutes from "./routes/loginRoutes.js";
+import companyRoutes from "./routes/companyRoutes.js";
+import passwordResetRoutes from "./routes/passwordReset.routes.js";
+import { startTokenCleanup } from "./utils/scheduler.js";
+import emailService from "./services/email.service.js";
+import logger from "./utils/logger.js";
 import envConfig from "./config/env.js";
-import env from "./config/env.js";
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
+const PORT = envConfig.PORT || process.env.PORT || 3001;
 
 // Connect to Database
 connectDB();
 
+// Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Debug middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
 
 // Routes
 app.use("/api/auth", loginRoutes);
+app.use("/api/companies", companyRoutes);
+app.use("/api/password-reset", passwordResetRoutes);
 
-const PORT = envConfig.PORT || 3001;
+// Root endpoint
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "Internship Portal API",
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: "GET /health",
+      test: "GET /api/test",
+      auth: {
+        login: "POST /api/auth/login",
+      },
+      companies: "GET /api/companies",
+      passwordReset: {
+        request: "POST /api/password-reset/request",
+        validate: "POST /api/password-reset/validate",
+        reset: "POST /api/password-reset/reset",
+      },
+    },
+    documentation: "See POSTMAN_TESTING_GUIDE.md for API documentation",
+  });
+});
 
-app.listen(PORT, () => {
+// Test endpoint
+app.get("/api/test", (req, res) => {
+  res.json({
+    message: "API is working",
+    timestamp: new Date().toISOString(),
+    routes: [
+      "POST /api/auth/login",
+      "GET /api/companies",
+      "POST /api/password-reset/request",
+      "POST /api/password-reset/validate",
+      "POST /api/password-reset/reset",
+    ],
+  });
+});
+
+// Health check
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res
+    .status(404)
+    .json({ success: false, message: `Not Found - ${req.originalUrl}` });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message || "Server Error",
+    ...(envConfig.NODE_ENV === "development" && { stack: err.stack }),
+  });
+});
+
+// Start server
+const server = app.listen(PORT, async () => {
   console.log(`http://localhost:${PORT}`);
-  console.log(`Server running in ${envConfig.NODE_ENV} mode on port ${PORT}`);
+  console.log(
+    `[INFO] ${new Date().toISOString()}: Server running in ${envConfig.NODE_ENV || "development"} mode on port ${PORT}`,
+  );
+
+  // Verify email service connection
+  await emailService.verifyConnection();
+
+  // Start background cleanup scheduler
+  startTokenCleanup();
+});
+
+// Handle unhandled promise rejections
+process.on("unhandledRejection", (err) => {
+  console.error(
+    `[ERROR] ${new Date().toISOString()}: Unhandled Rejection: ${err.message}`,
+  );
+  server.close(() => process.exit(1));
 });
 
 export default app;

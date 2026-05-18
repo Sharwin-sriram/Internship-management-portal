@@ -44,11 +44,11 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (res.ok) {
-      setSuccess("Account created! Redirecting to sign in…");
-      setTimeout(() => router.push("/login"), 1800);
+      setSuccess('Account created! Redirecting...');
+      setTimeout(() => router.push('/register/success'), 800);
     } else {
-      const b = res.body as { message?: string } | null;
-      setError(b?.message ?? "Registration failed. Please try again.");
+      const b = res.body as { error?: string; message?: string } | null;
+      setError(b?.error ?? b?.message ?? 'Registration failed. Please try again.');
     }
   }
 
