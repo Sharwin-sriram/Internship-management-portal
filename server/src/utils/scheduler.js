@@ -1,8 +1,8 @@
-const passwordResetService = require('../services/passwordReset.service');
-const logger = require('./logger');
+import * as passwordResetService from "../services/passwordResetService.js";
+import logger from "./logger.js";
 
 // Cleanup expired tokens every hour
-const startTokenCleanup = () => {
+export const startTokenCleanup = () => {
   const CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
 
   setInterval(async () => {
@@ -13,7 +13,5 @@ const startTokenCleanup = () => {
     }
   }, CLEANUP_INTERVAL);
 
-  logger.info('Token cleanup scheduler started');
+  logger.info("Token cleanup scheduler started");
 };
-
-module.exports = { startTokenCleanup };

@@ -7,7 +7,7 @@ import authRoutes from "./routes/authRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import passwordResetRoutes from "./routes/passwordReset.routes.js";
 import { startTokenCleanup } from "./utils/scheduler.js";
-import emailService from "./services/email.service.js";
+import emailService from "./services/emailService.js";
 import logger from "./utils/logger.js";
 import envConfig from "./config/env.js";
 
