@@ -53,6 +53,21 @@ interface AnalyticsData {
   averageTimeToOfferDays: number;
 }
 
+const interviewQuickLinks = [
+  {
+    href: '/dashboard/company/interviews/schedule',
+    label: 'Schedule Interviews',
+    desc: 'Book interviews with candidates — date, time, type, and meeting link',
+    icon: '📅',
+  },
+  {
+    href: '/dashboard/company/calendar',
+    label: 'Interview Calendar',
+    desc: 'Month and week views, filters, and Google Calendar sync',
+    icon: '🗓️',
+  },
+];
+
 
 export default function CompanyDashboardPage() {
   const router = useRouter();
@@ -216,6 +231,43 @@ export default function CompanyDashboardPage() {
             </div>
           </div>
         )}
+
+        {/* Interview quick actions */}
+        <section style={{ marginBottom: '2.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 1rem' }}>Interviews</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            {interviewQuickLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                style={{
+                  display: 'block',
+                  textDecoration: 'none',
+                  background: '#fff',
+                  borderRadius: 18,
+                  padding: '20px 22px',
+                  border: '1px solid rgba(148,174,254,0.25)',
+                  boxShadow: '0 8px 24px rgba(15,23,42,0.04)',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 12px 30px rgba(15,23,42,0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(59,130,246,0.35)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(15,23,42,0.04)';
+                  e.currentTarget.style.borderColor = 'rgba(148,174,254,0.25)';
+                }}
+              >
+                <span style={{ fontSize: '1.75rem', display: 'block', marginBottom: 10 }}>{link.icon}</span>
+                <strong style={{ display: 'block', fontSize: '1.05rem', color: '#0f172a', marginBottom: 6 }}>{link.label}</strong>
+                <span style={{ fontSize: '0.88rem', color: '#64748b', lineHeight: 1.5 }}>{link.desc}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* Status banner */}
         {metrics?.approvalStatus !== 'approved' && (

@@ -1,68 +1,64 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { FiCalendar, FiClock, FiFilter, FiRefreshCw, FiPlus, FiChevronLeft, FiChevronRight, FiVideo, FiPhone, FiMapPin } from 'react-icons/fi';
 import Button from '../../../../components/ui/Button';
 import InterviewCard from '../../../../components/interviews/InterviewCard';
+import * as interviewApi from '../../../../services/interviewApi';
+import type { InterviewRecord } from '../../../../types/interview';
+import { interviewCalendarDayKey, interviewToCardProps } from '../../../../lib/interviewMappers';
+import { useProtectedRoute } from '../../../../hooks/useProtectedRoute';
+import { useInterviewSocket } from '../../../../context/InterviewSocketContext';
+import { useToast } from '../../../../context/ToastContext';
 
 export default function CalendarDashboardPage() {
+  useProtectedRoute(['company']);
+  const { subscribe } = useInterviewSocket();
+  const { showToast } = useToast();
+
   const [view, setView] = useState<'month' | 'week'>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showFilters, setShowFilters] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'video' | 'phone' | 'in-person'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'scheduled' | 'completed' | 'pending'>('all');
+  const [records, setRecords] = useState<InterviewRecord[]>([]);
+  const [loadingCal, setLoadingCal] = useState(true);
 
-  const mockInterviews = [
-    {
-      id: 'int_1',
-      companyName: 'Acme Corp',
-      jobTitle: 'Software Engineer Intern',
-      date: '2026-05-22',
-      time: '10:00 AM',
-      interviewType: 'video' as const,
-      interviewerName: 'Sarah Connor',
-      meetingLink: 'https://meet.google.com/abc-defg-hij',
-      status: 'accepted' as const,
-    },
-    {
-      id: 'int_2',
-      companyName: 'TechGlobal',
-      jobTitle: 'Frontend Developer',
-      date: '2026-05-24',
-      time: '02:00 PM',
-      interviewType: 'in-person' as const,
-      interviewerName: 'John Smith',
-      location: '123 Tech Street, Building A',
-      status: 'accepted' as const,
-    },
-    {
-      id: 'int_3',
-      companyName: 'DataCorp',
-      jobTitle: 'Data Analyst Intern',
-      date: '2026-05-25',
-      time: '11:00 AM',
-      interviewType: 'phone' as const,
-      interviewerName: 'Emily Chen',
-      status: 'pending' as const,
-    },
-    {
-      id: 'int_4',
-      companyName: 'InnovaTech',
-      jobTitle: 'UI/UX Intern',
-      date: '2026-05-26',
-      time: '03:00 PM',
-      interviewType: 'video' as const,
-      interviewerName: 'Michael Brown',
-      meetingLink: 'https://zoom.us/j/123456789',
-      status: 'accepted' as const,
-    },
-  ];
+  const loadInterviews = useCallback(async () => {
+    setLoadingCal(true);
+    try {
+      const list = await interviewApi.listInterviewsLegacy();
+      setRecords(list);
+    } catch {
+      showToast('Could not load interview schedule', 'error');
+      setRecords([]);
+    } finally {
+      setLoadingCal(false);
+    }
+  }, [showToast]);
 
-  const filteredInterviews = mockInterviews.filter(interview => {
-    if (filterType !== 'all' && interview.interviewType !== filterType) return false;
-    if (filterStatus !== 'all' && interview.status !== filterStatus) return false;
-    return true;
-  });
+  useEffect(() => {
+    loadInterviews();
+  }, [loadInterviews]);
+
+  useEffect(() => {
+    const off = subscribe('interview:scheduled', () => loadInterviews());
+    return () => off();
+  }, [subscribe, loadInterviews]);
+
+  const filteredRecords = useMemo(() => {
+    return records.filter((doc) => {
+      if (filterType !== 'all' && doc.interview_type !== filterType) return false;
+      if (filterStatus === 'all') return true;
+      if (filterStatus === 'scheduled') return doc.status === 'scheduled' || doc.status === 'accepted';
+      if (filterStatus === 'pending') return doc.status === 'pending' || doc.status === 'reschedule_requested';
+      if (filterStatus === 'completed') return doc.status === 'completed';
+      return true;
+    });
+  }, [records, filterType, filterStatus]);
+
+  const filteredCards = useMemo(() => filteredRecords.map(interviewToCardProps), [filteredRecords]);
 
   const getMonthDays = (date: Date) => {
     const year = date.getFullYear();
@@ -88,7 +84,28 @@ export default function CalendarDashboardPage() {
   const getInterviewsForDay = (day: number | null) => {
     if (!day) return [];
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return filteredInterviews.filter(int => int.date === dateStr);
+    return filteredRecords
+      .filter((doc) => interviewCalendarDayKey(doc) === dateStr)
+      .map(interviewToCardProps);
+  };
+
+  const [syncBusy, setSyncBusy] = useState(false);
+
+  const syncFirstInterview = async () => {
+    const first = records[0];
+    if (!first?._id) {
+      showToast("No interviews to sync yet", "info");
+      return;
+    }
+    setSyncBusy(true);
+    try {
+      await interviewApi.syncGoogleCalendar(first._id);
+      showToast("Calendar sync requested (check server Google credentials)", "success");
+    } catch (e) {
+      showToast("Calendar sync failed — configure Google env on server", "error");
+    } finally {
+      setSyncBusy(false);
+    }
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -120,9 +137,11 @@ export default function CalendarDashboardPage() {
             <Button variant="ghost" onClick={() => setCurrentDate(new Date())} style={{ border: '1px solid var(--color-border)' }}>
               <FiRefreshCw style={{ marginRight: 8 }} /> Today
             </Button>
+            <Link href="/dashboard/company/interviews/schedule" style={{ textDecoration: 'none' }}>
             <Button variant="primary" style={{ background: '#2297FA' }}>
               <FiPlus style={{ marginRight: 8 }} /> Schedule Interview
             </Button>
+            </Link>
           </div>
         </div>
       </div>
@@ -321,9 +340,11 @@ export default function CalendarDashboardPage() {
           <FiClock /> Upcoming Interviews
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 'var(--space-lg)' }}>
-          {filteredInterviews.slice(0, 4).map((interview) => (
-            <InterviewCard key={interview.id} {...interview} showActions={false} />
-          ))}
+          {loadingCal && <p style={{ color: 'var(--color-muted)' }}>Loading schedule…</p>}
+          {!loadingCal && filteredCards.slice(0, 4).map((interview) => {
+            const { id, ...card } = interview;
+            return <InterviewCard key={id} {...card} showActions={false} />;
+          })}
         </div>
       </div>
 
@@ -338,8 +359,8 @@ export default function CalendarDashboardPage() {
               Automatically sync your interview schedule with Google Calendar for seamless integration
             </p>
           </div>
-          <Button variant="secondary" style={{ background: 'white', color: '#2297FA' }}>
-            Connect Google Calendar
+          <Button variant="secondary" style={{ background: 'white', color: '#2297FA' }} onClick={syncFirstInterview} loading={syncBusy}>
+            Sync next interview to Google
           </Button>
         </div>
       </div>
