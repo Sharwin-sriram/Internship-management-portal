@@ -172,6 +172,120 @@ class EmailService {
     }
   }
 
+  async sendInterviewInvitation({
+    to,
+    studentName,
+    companyName,
+    interview,
+    meetingLink,
+    instructions,
+  }) {
+    if (!to) {
+      logger.warn("Interview invitation email skipped: no recipient");
+      return { success: false };
+    }
+
+    const when = new Date(interview.scheduled_at).toLocaleString("en-IN", {
+      dateStyle: "full",
+      timeStyle: "short",
+    });
+
+    const mailOptions = {
+      from: EMAIL_FROM,
+      to,
+      subject: `Interview Invitation — ${companyName || "Company"}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2297FA;">Interview Invitation</h2>
+          <p>Hello ${studentName || "Candidate"},</p>
+          <p><strong>${companyName}</strong> has scheduled a <strong>${interview.interview_type}</strong> interview (Round ${interview.round_number}).</p>
+          <ul>
+            <li><strong>When:</strong> ${when}</li>
+            <li><strong>Type:</strong> ${interview.interview_type}</li>
+            ${meetingLink ? `<li><strong>Meeting link:</strong> <a href="${meetingLink}">${meetingLink}</a></li>` : ""}
+          </ul>
+          ${instructions ? `<p><strong>Instructions:</strong><br/>${instructions}</p>` : ""}
+          <p><a href="${FRONTEND_URL}/dashboard/student/interviews" style="display:inline-block;padding:12px 20px;background:#2297FA;color:#fff;text-decoration:none;border-radius:8px;">View invitation</a></p>
+        </div>
+      `,
+      text: `Interview invitation from ${companyName}. When: ${when}. Type: ${interview.interview_type}. ${meetingLink ? `Link: ${meetingLink}` : ""}`,
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`Interview invitation email sent to ${to}`);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      logger.error(`Interview invitation email failed: ${error.message}`);
+      return { success: false };
+    }
+  }
+
+  async sendInterviewResponseNotice({
+    to,
+    companyName,
+    action,
+    interview,
+    reason,
+  }) {
+    if (!to) return { success: false };
+
+    const labels = {
+      accept: "accepted",
+      decline: "declined",
+      reschedule: "requested a reschedule for",
+    };
+
+    const mailOptions = {
+      from: EMAIL_FROM,
+      to,
+      subject: `Interview update — candidate ${labels[action] || action}`,
+      html: `
+        <p>The candidate has <strong>${labels[action]}</strong> the Round ${interview.round_number} interview.</p>
+        ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
+        <p><a href="${FRONTEND_URL}/dashboard/company/calendar">Open calendar</a></p>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      return { success: true };
+    } catch (error) {
+      logger.error(`Interview response email failed: ${error.message}`);
+      return { success: false };
+    }
+  }
+
+  async sendInterviewReminder({ to, name, interview, hoursBefore }) {
+    if (!to) return { success: false };
+
+    const when = new Date(interview.scheduled_at).toLocaleString("en-IN", {
+      dateStyle: "full",
+      timeStyle: "short",
+    });
+
+    const mailOptions = {
+      from: EMAIL_FROM,
+      to,
+      subject: `Reminder: Interview in ${hoursBefore} hour(s)`,
+      html: `
+        <p>Hello ${name || "there"},</p>
+        <p>This is a reminder that you have an interview in <strong>${hoursBefore} hour(s)</strong>.</p>
+        <p><strong>When:</strong> ${when}</p>
+        <p><strong>Type:</strong> ${interview.interview_type}</p>
+        ${interview.meeting_link ? `<p><a href="${interview.meeting_link}">Join meeting</a></p>` : ""}
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      return { success: true };
+    } catch (error) {
+      logger.error(`Interview reminder email failed: ${error.message}`);
+      return { success: false };
+    }
+  }
+
   async verifyConnection() {
     try {
       // Skip verification if email credentials are not configured

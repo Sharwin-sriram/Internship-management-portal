@@ -1,5 +1,5 @@
 import express from "express";
-import User from "../models/User.js";
+import User from "../models/user.js";
 import { logAuthEvent, AuthEventType, AuthEventStatus } from "../services/authLog.service.js";
 
 // Helper for sending token response

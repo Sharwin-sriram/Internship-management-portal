@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "coordinator", "student", "company"],
+      enum: ["admin", "coordinator", "student", "company", "interviewer"],
       default: "student",
     },
     avatar: {
@@ -87,6 +87,6 @@ userSchema.methods.getSignedJwtToken = function () {
   );
 };
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.models.User || mongoose.model("User", userSchema);
 
 export default User;

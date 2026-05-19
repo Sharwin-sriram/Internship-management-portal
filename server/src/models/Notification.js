@@ -7,13 +7,26 @@ const notificationSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    title: {
+      type: String,
+      default: "",
+    },
+    message: {
+      type: String,
+      default: "",
+    },
+    action_url: {
+      type: String,
+      default: "",
+    },
     event_type: {
       type: String,
       required: true,
+      index: true,
     },
     payload: {
       type: mongoose.Schema.Types.Mixed,
-      required: true,
+      default: {},
     },
     channel: {
       type: String,

@@ -82,3 +82,17 @@ export async function postForm<T = unknown>(
     return { ok: false, status: 0, body: null };
   }
 }
+
+export async function downloadBlob(path: string): Promise<Blob | null> {
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) return null;
+    return res.blob();
+  } catch {
+    return null;
+  }
+}
+
+export { BASE_URL };

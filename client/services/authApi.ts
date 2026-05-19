@@ -1,0 +1,33 @@
+import api from "../lib/axios";
+import type { AuthUser } from "../lib/auth";
+
+export interface LoginBody {
+  email: string;
+  password: string;
+}
+
+export interface LoginResult {
+  success: boolean;
+  token?: string;
+  user?: AuthUser;
+  message?: string;
+}
+
+export async function loginStudent(body: LoginBody) {
+  const { data } = await api.post<LoginResult>("/auth/login", body);
+  return data;
+}
+
+export async function loginCompany(body: LoginBody) {
+  const { data } = await api.post<LoginResult>("/companies/login", body);
+  return data;
+}
+
+export async function fetchMe() {
+  const { data } = await api.get<{ success: boolean; data: AuthUser }>("/auth/me");
+  return data;
+}
+
+export async function logoutRequest() {
+  await api.get("/auth/logout");
+}

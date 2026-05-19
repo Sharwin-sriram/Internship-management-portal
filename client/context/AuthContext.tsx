@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthUser, getStoredUser, saveAuth, clearAuth } from '../lib/auth';
-import { postJson, getJson } from '../lib/api';
+import * as authApi from '../services/authApi';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -26,6 +26,17 @@ const AuthContext = createContext<AuthContextValue>({
   refreshUser: async () => {},
 });
 
+function normalizeUser(raw: { id?: string; _id?: string; name: string; email: string; role: AuthUser['role'] }, token: string): AuthUser {
+  const id = raw.id ?? (raw as { _id?: string })._id;
+  return {
+    id: id != null ? String(id) : '',
+    name: raw.name,
+    email: raw.email,
+    role: raw.role,
+    token,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,16 +45,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const stored = getStoredUser();
     if (stored?.token) {
       setUser(stored);
-      // Optional: Fetch latest profile
-      getJson<{ success: boolean; data: AuthUser }>('/auth/me').then(res => {
-        if (res.ok && res.body?.success) {
-          const authUser = { ...res.body.data, token: stored.token };
+      authApi.fetchMe().then((res) => {
+        if (res.success && res.data) {
+          const authUser = normalizeUser(res.data as never, stored.token!);
           saveAuth(authUser);
           setUser(authUser);
         } else {
           clearAuth();
           setUser(null);
         }
+      }).catch(() => {
+        clearAuth();
+        setUser(null);
       }).finally(() => {
         setIsLoading(false);
       });
@@ -53,33 +66,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function login(email: string, password: string, role: AuthUser['role'] = 'student'): Promise<string | null> {
-    const path = role === 'company' ? '/companies/login' : '/auth/login';
-    const res = await postJson<LoginResponse>(path, { email, password });
-    if (res.ok && res.body?.success) {
-      const authUser = { ...res.body.user, token: res.body.token };
-      saveAuth(authUser);
-      setUser(authUser);
-      return null;
+    try {
+      const data =
+        role === 'company'
+          ? await authApi.loginCompany({ email, password })
+          : await authApi.loginStudent({ email, password });
+
+      if (data.success && data.token && data.user) {
+        const authUser = normalizeUser(data.user as never, data.token);
+        saveAuth(authUser);
+        setUser(authUser);
+        return null;
+      }
+      return data.message ?? 'Login failed. Please check your credentials.';
+    } catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      return msg ?? 'Login failed. Please check your credentials.';
     }
-    const body = res.body as { message?: string } | null;
-    return body?.message ?? 'Login failed. Please check your credentials.';
   }
 
   async function logout() {
-    await getJson('/auth/logout');
+    try {
+      await authApi.logoutRequest();
+    } catch {
+      /* ignore */
+    }
     clearAuth();
     setUser(null);
   }
 
   async function refreshUser() {
     const stored = getStoredUser();
-    if (stored?.token) {
-      const res = await getJson<{ success: boolean; data: AuthUser }>('/auth/me');
-      if (res.ok && res.body?.success) {
-        const authUser = { ...res.body.data, token: stored.token };
+    if (!stored?.token) return;
+    try {
+      const res = await authApi.fetchMe();
+      if (res.success && res.data) {
+        const authUser = normalizeUser(res.data as never, stored.token);
         saveAuth(authUser);
         setUser(authUser);
       }
+    } catch {
+      /* ignore */
     }
   }
 

@@ -1,13 +1,34 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import Link from "next/link";
+import { useAuth } from "../context/AuthContext";
+import * as notificationApi from "../services/notificationApi";
 
 export default function NotificationBell() {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
+  const [items, setItems] = useState<notificationApi.NotificationItem[]>([]);
+  const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on click outside
+  const load = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const list = await notificationApi.listNotifications({ limit: 30 });
+      setItems(list);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (isOpen && user) load();
+  }, [isOpen, user, load]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -18,19 +39,34 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const notifications = [
-    { id: 1, title: "Upcoming Interview", desc: "You have an interview with Acme Corp tomorrow at 10:00 AM.", time: "1 hour ago", unread: true },
-    { id: 2, title: "Interview Feedback", desc: "Feedback for John Doe has been submitted.", time: "3 hours ago", unread: true },
-    { id: 3, title: "New Invitation", desc: "TechGlobal has sent you an interview invite.", time: "1 day ago", unread: false },
-  ];
+  const hasUnread = items.some((n) => !n.is_read);
+
+  const markAll = async () => {
+    try {
+      await notificationApi.markAllNotificationsRead();
+      await load();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const markOne = async (id: string) => {
+    try {
+      await notificationApi.markNotificationRead(id);
+      setItems((prev) => prev.map((n) => (n._id === id ? { ...n, is_read: true } : n)));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  if (!user) return null;
 
   return (
     <div style={{ position: "relative" }} ref={dropdownRef}>
       <button
-        onClick={() => {
-          setIsOpen(!isOpen);
-          setHasUnread(false);
-        }}
+        type="button"
+        aria-label="Notifications"
+        onClick={() => setIsOpen(!isOpen)}
         style={{
           background: "transparent",
           border: "none",
@@ -86,30 +122,58 @@ export default function NotificationBell() {
         >
           <div style={{ padding: "16px", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3 style={{ margin: 0, fontSize: "var(--font-size-md)", fontWeight: 600 }}>Notifications</h3>
-            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-primary)", cursor: "pointer", fontWeight: 500 }}>Mark all as read</span>
+            <button
+              type="button"
+              onClick={markAll}
+              style={{ fontSize: "var(--font-size-xs)", color: "var(--color-primary)", cursor: "pointer", fontWeight: 500, background: "none", border: "none" }}
+            >
+              Mark all read
+            </button>
           </div>
           <div style={{ maxHeight: 300, overflowY: "auto" }}>
-            {notifications.map((n) => (
+            {loading && (
+              <div style={{ padding: 16, color: "var(--color-muted)", fontSize: "var(--font-size-sm)" }}>Loading…</div>
+            )}
+            {!loading && items.length === 0 && (
+              <div style={{ padding: 16, color: "var(--color-muted)", fontSize: "var(--font-size-sm)" }}>No notifications yet</div>
+            )}
+            {items.map((n) => (
               <div
-                key={n.id}
+                key={n._id}
+                role="button"
+                tabIndex={0}
+                onClick={() => !n.is_read && markOne(n._id)}
+                onKeyDown={(e) => e.key === "Enter" && !n.is_read && markOne(n._id)}
                 style={{
                   padding: "16px",
                   borderBottom: "1px solid var(--color-border)",
-                  background: n.unread ? "var(--color-primary-10)" : "transparent",
+                  background: !n.is_read ? "var(--color-primary-10)" : "transparent",
                   cursor: "pointer",
-                  transition: "background var(--transition-fast)",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-primary-10)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = n.unread ? "var(--color-primary-10)" : "transparent")}
               >
-                <h4 style={{ margin: "0 0 4px 0", fontSize: "var(--font-size-sm)", fontWeight: 600 }}>{n.title}</h4>
-                <p style={{ margin: "0 0 6px 0", fontSize: "var(--font-size-sm)", color: "var(--color-muted)", lineHeight: 1.4 }}>{n.desc}</p>
-                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-muted)" }}>{n.time}</span>
+                <h4 style={{ margin: "0 0 4px 0", fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
+                  {n.title || n.event_type}
+                </h4>
+                <p style={{ margin: "0 0 6px 0", fontSize: "var(--font-size-sm)", color: "var(--color-muted)", lineHeight: 1.4 }}>
+                  {n.message || ""}
+                </p>
+                {n.action_url && (
+                  <Link
+                    href={(() => {
+                      try {
+                        const u = new URL(n.action_url);
+                        return `${u.pathname}${u.search}`;
+                      } catch {
+                        return n.action_url.startsWith("/") ? n.action_url : "/dashboard";
+                      }
+                    })()}
+                    style={{ fontSize: "var(--font-size-xs)", color: "var(--color-primary)" }}
+                  >
+                    Open
+                  </Link>
+                )}
               </div>
             ))}
-          </div>
-          <div style={{ padding: "12px", textAlign: "center", background: "var(--color-background)", borderTop: "1px solid var(--color-border)" }}>
-            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-primary)", cursor: "pointer", fontWeight: 600 }}>View all notifications</span>
           </div>
         </div>
       )}
