@@ -1,126 +1,305 @@
-import Interview from "../models/Interview.js";
-import Application from "../models/Application.js";
+import * as interviewService from "../services/interviewService.js";
+import { syncInterviewToGoogleCalendar } from "../services/googleCalendarService.js";
+import { sendSuccess, sendError } from "../utils/response.js";
+import logger from "../utils/logger.js";
 
-// @desc    Create a new interview
-// @route   POST /api/interviews
-// @access  Private (Company/Coordinator)
-export const createInterview = async (req, res) => {
+function parseScheduledAt(body) {
+  if (body.scheduled_at) {
+    return new Date(body.scheduled_at);
+  }
+  if (body.date && body.time) {
+    return new Date(`${body.date}T${body.time}`);
+  }
+  if (body.interview_date && body.interview_time) {
+    return new Date(`${body.interview_date}T${body.interview_time}`);
+  }
+  return null;
+}
+
+function parseInterviewType(body) {
+  const raw = body.interview_type || body.type || "video";
+  const normalized = String(raw).toLowerCase();
+  const map = {
+    video: "video",
+    phone: "phone",
+    "in-person": "in-person",
+    inperson: "in-person",
+    technical: "video",
+    hr: "video",
+    managerial: "video",
+    assignment: "video",
+  };
+  return map[normalized] || "video";
+}
+
+function handleServiceError(res, error) {
+  logger.error(error.message);
+  const status = error.statusCode || 500;
+  return res.status(status).json({
+    success: false,
+    message: error.message,
+    ...(error.conflicts && { conflicts: error.conflicts }),
+  });
+}
+
+// POST /api/interviews
+export const scheduleInterview = async (req, res) => {
   try {
-    const { application, round_number, scheduled_at, type, interviewer_id } = req.body;
+    const applicationId = req.body.application_id || req.body.application;
+    const scheduledAt = parseScheduledAt(req.body);
 
-    // Validate if application exists
-    const existingApp = await Application.findById(application);
-    if (!existingApp) {
-      return res.status(404).json({ message: "Application not found" });
+    if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+      return sendError(res, { message: "Invalid date or time" }, 400);
     }
 
-    const newInterview = await Interview.create({
-      application,
-      round_number: round_number || 1,
-      scheduled_at,
-      type: type.toLowerCase(),
-      interviewer_id: interviewer_id || null,
-      status: "scheduled",
+    const interview = await interviewService.scheduleInterview({
+      scheduledByUser: req.user,
+      applicationId,
+      interviewerId: req.body.interviewer_id || null,
+      interviewType: parseInterviewType(req.body),
+      scheduledAt,
+      interviewDate: req.body.interview_date || req.body.date || scheduledAt,
+      interviewTime: req.body.interview_time || req.body.time || "",
+      meetingLink: req.body.meeting_link || "",
+      instructions: req.body.instructions || req.body.notes || "",
+      roundNumber: req.body.round_number,
     });
 
-    // Optionally update application status to 'interviewing'
-    existingApp.status = "interviewing";
-    await existingApp.save();
-
-    res.status(201).json(newInterview);
+    return sendSuccess(res, { data: interview }, 201);
   } catch (error) {
-    console.error("Error creating interview:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    return handleServiceError(res, error);
   }
 };
 
-// @desc    Get all interviews (filtered by role)
-// @route   GET /api/interviews
-// @access  Private
+// GET /api/interviews
 export const getInterviews = async (req, res) => {
   try {
-    const userRole = req.user.role;
-    let query = {};
-
-    // Assuming population to get student and company details
-    // For a robust system, we would query based on the user's ID
-    // e.g., if student: query = { 'application.student': req.user.id }
-    // Since we don't have deep joins here easily without aggregate, we'll return all for now or basic filter
-    
-    // For interviewer role, filter by interviewer_id
-    if (userRole === "interviewer") {
-      query.interviewer_id = req.user.id;
-    }
+    const query = await interviewService.buildInterviewQueryForUser(req.user);
+    const Interview = (await import("../models/Interview.js")).default;
 
     const interviews = await Interview.find(query)
       .populate({
         path: "application",
         populate: [
-          { path: "student", select: "name email" },
-          { path: "internship", select: "title company", populate: { path: "company", select: "name" } }
-        ]
+          {
+            path: "student",
+            populate: { path: "user", select: "name email" },
+          },
+          {
+            path: "internship",
+            select: "title",
+            populate: { path: "company", select: "company_name" },
+          },
+        ],
       })
-      .populate("interviewer_id", "name email");
+      .populate("interviewer_id", "name email")
+      .populate("company", "company_name")
+      .sort({ scheduled_at: -1 });
 
-    res.json(interviews);
+    if (req.query.legacy === "1") {
+      return res.json(interviews);
+    }
+
+    return sendSuccess(res, { data: interviews });
   } catch (error) {
-    console.error("Error fetching interviews:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    return handleServiceError(res, error);
   }
 };
 
-// @desc    Update interview status
-// @route   PATCH /api/interviews/:id/status
-// @access  Private
+// GET /api/interviews/:id
+export const getInterviewById = async (req, res) => {
+  try {
+    const query = await interviewService.buildInterviewQueryForUser(req.user);
+    const Interview = (await import("../models/Interview.js")).default;
+
+    const interview = await Interview.findOne({
+      _id: req.params.id,
+      ...query,
+    })
+      .populate({
+        path: "application",
+        populate: [
+          { path: "student", populate: { path: "user", select: "name email" } },
+          { path: "internship", select: "title" },
+        ],
+      })
+      .populate("interviewer_id", "name email")
+      .populate("company", "company_name");
+
+    if (!interview) {
+      return sendError(res, { message: "Interview not found" }, 404);
+    }
+
+    return sendSuccess(res, { data: interview });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
+// PATCH /api/interviews/:id/status
 export const updateInterviewStatus = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    if (!["scheduled", "completed", "cancelled", "rescheduled"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
-    const interview = await Interview.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true, runValidators: true }
+    const interview = await interviewService.updateInterviewStatus(
+      req.params.id,
+      req.body.status,
+      req.user,
     );
-
-    if (!interview) {
-      return res.status(404).json({ message: "Interview not found" });
-    }
-
-    res.json(interview);
+    return sendSuccess(res, { data: interview });
   } catch (error) {
-    console.error("Error updating interview status:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    return handleServiceError(res, error);
   }
 };
 
-// @desc    Submit feedback
-// @route   POST /api/interviews/:id/feedback
-// @access  Private (Interviewer/Company/Coordinator)
-export const submitFeedback = async (req, res) => {
+// POST /api/interviews/:id/accept
+export const acceptInterview = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { score, comments, recommendation } = req.body;
+    const interview = await interviewService.respondToInterview({
+      interviewId: req.params.id,
+      studentUser: req.user,
+      action: "accept",
+    });
+    return sendSuccess(res, { data: interview });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
 
-    const interview = await Interview.findById(id);
-    if (!interview) {
-      return res.status(404).json({ message: "Interview not found" });
+// POST /api/interviews/:id/decline
+export const declineInterview = async (req, res) => {
+  try {
+    const interview = await interviewService.respondToInterview({
+      interviewId: req.params.id,
+      studentUser: req.user,
+      action: "decline",
+      reason: req.body.reason || "",
+    });
+    return sendSuccess(res, { data: interview });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
+// PATCH /api/interviews/:id/reschedule
+export const requestReschedule = async (req, res) => {
+  try {
+    const interview = await interviewService.respondToInterview({
+      interviewId: req.params.id,
+      studentUser: req.user,
+      action: "reschedule",
+      reason: req.body.reason,
+    });
+    return sendSuccess(res, { data: interview });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
+// POST /api/interviews/:id/advance-round
+export const advanceRound = async (req, res) => {
+  try {
+    const scheduledAt = parseScheduledAt(req.body);
+    if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+      return sendError(res, { message: "Invalid date or time for next round" }, 400);
     }
 
-    interview.feedback_score = score;
-    interview.status = "completed"; // Automatically mark completed when feedback given
-    // we would save comments/recommendation if the schema had those fields. 
-    // we will save what we can.
+    const interview = await interviewService.advanceToNextRound({
+      interviewId: req.params.id,
+      companyUser: req.user,
+      nextRoundPayload: {
+        interviewerId: req.body.interviewer_id,
+        interviewType: parseInterviewType(req.body),
+        scheduledAt,
+        interviewDate: req.body.interview_date || scheduledAt,
+        interviewTime: req.body.interview_time || "",
+        meetingLink: req.body.meeting_link || "",
+        instructions: req.body.instructions || "",
+      },
+    });
 
-    await interview.save();
-
-    res.json(interview);
+    return sendSuccess(res, { data: interview }, 201);
   } catch (error) {
-    console.error("Error submitting feedback:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    return handleServiceError(res, error);
+  }
+};
+
+// GET /api/interviews/application/:applicationId/rounds
+export const getRoundHistory = async (req, res) => {
+  try {
+    const rounds = await interviewService.getRoundHistory(
+      req.params.applicationId,
+    );
+    return sendSuccess(res, { data: rounds });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
+// POST /api/interviews/:id/feedback
+export const submitFeedback = async (req, res) => {
+  try {
+    const body = req.body;
+    const result = await interviewService.submitInterviewFeedback({
+      interviewId: req.params.id,
+      interviewerUser: req.user,
+      feedbackData: {
+        technical_skills: body.technical_skills ?? body.technical ?? body.score ?? 5,
+        communication: body.communication ?? 5,
+        problem_solving: body.problem_solving ?? body.problemSolving ?? 5,
+        confidence: body.confidence ?? 5,
+        comments: body.comments || "",
+        recommendation: body.recommendation || "neutral",
+        rubric_scores: body.rubric_scores || {},
+      },
+    });
+    return sendSuccess(res, { data: result }, 201);
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
+// GET /api/interviews/:id/feedback
+export const getFeedback = async (req, res) => {
+  try {
+    const feedback = await interviewService.getInterviewFeedback(
+      req.params.id,
+      req.user,
+    );
+    return sendSuccess(res, { data: feedback });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
+// PATCH /api/interviews/:id/feedback/release
+export const releaseFeedback = async (req, res) => {
+  try {
+    const feedback = await interviewService.releaseFeedbackToStudent(
+      req.params.id,
+    );
+    return sendSuccess(res, { data: feedback });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
+// POST /api/interviews/:id/calendar/sync
+export const syncCalendar = async (req, res) => {
+  try {
+    const interview = await interviewService.populateInterview(req.params.id);
+    if (!interview) {
+      return sendError(res, { message: "Interview not found" }, 404);
+    }
+
+    const studentUser = interview.application?.student?.user;
+    const result = await syncInterviewToGoogleCalendar(interview, {
+      companyName: interview.company?.company_name,
+      studentName: studentUser?.name,
+      studentEmail: studentUser?.email,
+      interviewerEmail: interview.interviewer_id?.email,
+    });
+
+    return sendSuccess(res, { data: result });
+  } catch (error) {
+    return handleServiceError(res, error);
   }
 };
