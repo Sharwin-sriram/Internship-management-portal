@@ -8,30 +8,28 @@ const connectDB = async () => {
       socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
     });
 
-    console.log(`✅ MongoDB Atlas Connected Successfully`);
-    console.log(`📊 Database: ${conn.connection.name}`);
-    console.log(`🌐 Host: ${conn.connection.host}`);
-
+    console.log(` MongoDB Connected Successfully`);
+    
     mongoose.connection.on('error', (err) => {
-      console.error(`❌ MongoDB connection error: ${err}`);
+      console.error(`.. MongoDB connection error: ${err}`);
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.log('🔌 MongoDB disconnected');
+      console.log('..MongoDB disconnected');
     });
 
     process.on('SIGINT', async () => {
       await mongoose.connection.close();
-      console.log('🔌 MongoDB connection closed through app termination');
+      console.log('..  MongoDB connection closed through app termination');
       process.exit(0);
     });
 
   } catch (error) {
-    console.error("❌ Database connection error:", error.message);
+    console.error("..Database connection error:", error.message);
     
     // Provide helpful error messages
     if (error.message.includes('ECONNREFUSED') || error.message.includes('querySrv')) {
-      console.log("\n🔧 Troubleshooting MongoDB Atlas Connection:");
+      console.log("\n Troubleshooting MongoDB Atlas Connection:");
       console.log("   1. ✓ Check your internet connection");
       console.log("   2. ✓ Verify MongoDB Atlas cluster is running (not paused)");
       console.log("   3. ✓ Check if your IP address is whitelisted in MongoDB Atlas");
@@ -40,7 +38,7 @@ const connectDB = async () => {
       console.log("   5. ✓ Check if your MongoDB Atlas account is active\n");
     }
     
-    console.error("⚠️  Server will continue without database. Some features may not work.\n");
+    console.error(" Server will continue without database. Some features may not work.\n");
     // Don't exit, let the server run without database for now
   }
 };

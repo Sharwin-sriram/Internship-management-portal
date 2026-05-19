@@ -11,6 +11,7 @@ const roleMeta: Record<string, { label: string; color: string; bg: string }> = {
   company:     { label: 'Company',     color: '#8082D6', bg: 'rgba(128,130,214,0.1)' },
   admin:       { label: 'Admin',       color: '#50B6FE', bg: 'rgba(80,182,254,0.1)' },
   coordinator: { label: 'Coordinator', color: '#94AEFE', bg: 'rgba(148,174,254,0.1)' },
+  interviewer: { label: 'Interviewer', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
 };
 
 const studentLinks = [
@@ -18,6 +19,7 @@ const studentLinks = [
   { label: 'My Applications',    icon: '📋', desc: 'Track the status of your applications', href: '/dashboard/applications' },
   { label: 'Documents',          icon: '📄', desc: 'Upload and manage your documents', href: '/dashboard/student/documents' },
   { label: 'Contracts',          icon: '✍️', desc: 'Review and sign internship contracts', href: '/dashboard/contracts' },
+  { label: 'My Interviews',      icon: '📅', desc: 'Track interview invitations and progress', href: '/dashboard/student/interviews' },
 ];
 
 const companyLinks = [
@@ -25,6 +27,7 @@ const companyLinks = [
   { label: 'Offer Letters',      icon: '✉️', desc: 'Generate and send offer letters', href: '/dashboard/company/offer-letters' },
   { label: 'Contracts',          icon: '✍️', desc: 'Generate and manage contracts', href: '/dashboard/contracts' },
   { label: 'Applicants',         icon: '👥', desc: 'Review student applications', href: '/dashboard/company/applicants' },
+  { label: 'Schedule Interviews',icon: '📅', desc: 'Schedule interviews with candidates', href: '/dashboard/company/interviews/schedule' },
 ];
 
 const coordinatorLinks = [
@@ -32,6 +35,11 @@ const coordinatorLinks = [
   { label: 'Bulk Export',        icon: '📦', desc: 'Export documents as ZIP archives', href: '/dashboard/coordinator/export' },
   { label: 'Manage Users',       icon: '🧑‍💻', desc: 'Manage students and companies', href: '/dashboard/coordinator/users' },
   { label: 'System Reports',     icon: '📊', desc: 'View portal usage statistics', href: '/dashboard/coordinator/reports' },
+  { label: 'Global Interviews',  icon: '📅', desc: 'Monitor all interview activities', href: '/dashboard/coordinator/interviews' },
+];
+
+const interviewerLinks = [
+  { label: 'Provide Feedback',   icon: '📝', desc: 'Evaluate candidates after interviews', href: '/dashboard/interviewer/feedback' },
 ];
 
 const roleLinks: Record<string, typeof studentLinks> = {
@@ -39,6 +47,7 @@ const roleLinks: Record<string, typeof studentLinks> = {
   company: companyLinks,
   coordinator: coordinatorLinks,
   admin: coordinatorLinks,
+  interviewer: interviewerLinks,
 };
 
 export default function DashboardPage() {

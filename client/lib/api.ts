@@ -8,7 +8,7 @@ export interface ApiResponse<T = unknown> {
 
 function getAuthHeaders(): HeadersInit {
   if (typeof window === 'undefined') return {};
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('internship_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -41,7 +41,7 @@ export const postJson = <T = unknown>(path: string, data: unknown) =>
   request<T>('POST', path, data);
 
 export async function postForm<T = unknown>(path: string, formData: FormData): Promise<ApiResponse<T>> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('internship_token') : null;
   const headers: Record<string, string> = {};
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -68,3 +68,6 @@ export const putJson = <T = unknown>(path: string, data: unknown) =>
 
 export const deleteJson = <T = unknown>(path: string) =>
   request<T>('DELETE', path, undefined, true);
+
+export const patchJson = <T = unknown>(path: string, data: unknown) =>
+  request<T>('PATCH', path, data, true);

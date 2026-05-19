@@ -12,7 +12,15 @@ const documentSchema = new mongoose.Schema(
       enum: ["resume", "transcript", "id_proof", "offer_letter", "cover_letter", "certificate", "other"],
       required: true,
     },
-    storage_url: {
+    file_data: {
+      type: Buffer,
+      required: true,
+    },
+    mime_type: {
+      type: String,
+      required: true,
+    },
+    original_name: {
       type: String,
       required: true,
     },

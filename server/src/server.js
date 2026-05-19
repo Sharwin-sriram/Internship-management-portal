@@ -9,6 +9,10 @@ import authRoutes from "./routes/authRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import passwordResetRoutes from "./routes/passwordReset.routes.js";
 import documentRoutes from "./routes/documentRoutes.js";
+import offerLetterRoutes from "./routes/offerLetterRoutes.js";
+import contractRoutes from "./routes/contractRoutes.js";
+import exportRoutes from "./routes/exportRoutes.js";
+import interviewRoutes from "./routes/interviewRoutes.js";
 import { startTokenCleanup } from "./utils/scheduler.js";
 import emailService from "./services/emailService.js";
 import logger from "./utils/logger.js";
@@ -34,6 +38,7 @@ app.use(cookieParser());
 
 // Serve static files from uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/exports", express.static(path.join(__dirname, "../exports")));
 
 // Debug middleware
 app.use((req, res, next) => {
@@ -46,6 +51,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/password-reset", passwordResetRoutes);
 app.use("/api/documents", documentRoutes);
+app.use("/api/offer-letters", offerLetterRoutes);
+app.use("/api/contracts", contractRoutes);
+app.use("/api/exports", exportRoutes);
+app.use("/api/interviews", interviewRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {

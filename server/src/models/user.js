@@ -28,28 +28,21 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin"],
-      default: "user",
+      enum: ["student", "company", "coordinator", "admin"],
+      default: "student",
     },
     avatar: {
       type: String,
       default: "",
     },
-    cart: [
-      {
-        product: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
-          required: true,
-        },
-        quantity: {
-          type: Number,
-          required: true,
-          min: [1, "Quantity must be at least 1"],
-          default: 1,
-        },
-      },
-    ],
+    phone: {
+      type: String,
+      default: "",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     emailVerified: {
@@ -83,32 +76,6 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Get cart total
-userSchema.methods.getCartTotal = function () {
-  return this.cart.reduce((total, item) => total + item.quantity, 0);
-};
-
-// Clear cart
-userSchema.methods.clearCart = function () {
-  this.cart = [];
-  return this.save();
-};
-
-// Add item to cart
-userSchema.methods.addToCart = function (productId, quantity = 1) {
-  const existingItemIndex = this.cart.findIndex(
-    (item) => item.product.toString() === productId.toString(),
-  );
-
-  if (existingItemIndex > -1) {
-    this.cart[existingItemIndex].quantity += quantity;
-  } else {
-    this.cart.push({ product: productId, quantity });
-  }
-
-  return this.save();
-};
-
 // Sign JWT and return
 userSchema.methods.getSignedJwtToken = function () {
   return jwt.sign(
@@ -118,31 +85,6 @@ userSchema.methods.getSignedJwtToken = function () {
       expiresIn: process.env.JWT_EXPIRE || "24h",
     },
   );
-};
-
-// Remove item from cart
-userSchema.methods.removeFromCart = function (productId) {
-  this.cart = this.cart.filter(
-    (item) => item.product.toString() !== productId.toString(),
-  );
-  return this.save();
-};
-
-// Update cart item quantity
-userSchema.methods.updateCartItemQuantity = function (productId, quantity) {
-  const itemIndex = this.cart.findIndex(
-    (item) => item.product.toString() === productId.toString(),
-  );
-
-  if (itemIndex > -1) {
-    if (quantity <= 0) {
-      this.cart.splice(itemIndex, 1);
-    } else {
-      this.cart[itemIndex].quantity = quantity;
-    }
-  }
-
-  return this.save();
 };
 
 const User = mongoose.model("User", userSchema);

@@ -8,34 +8,18 @@ import {
   uploadDocument,
   getDocuments,
   deleteDocument,
-  verifyDocument
+  downloadDocument
 } from '../controllers/documentController.js';
+import { getVerificationHistory, updateVerificationStatus } from '../controllers/verificationController.js';
+import { getDocumentVersions, restoreDocumentVersion, downloadDocumentVersion } from '../controllers/documentVersionController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads');
-    
-    // Create uploads directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename: timestamp-randomstring-originalname
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const nameWithoutExt = path.basename(file.originalname, ext);
-    cb(null, `${nameWithoutExt}-${uniqueSuffix}${ext}`);
-  }
-});
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
 
 // File filter to accept only specific file types
 const fileFilter = (req, file, cb) => {
@@ -71,6 +55,21 @@ router.route('/:id')
   .delete(deleteDocument);
 
 router.route('/:id/verify')
-  .put(authorize('coordinator', 'admin'), verifyDocument);
+  .put(authorize('coordinator', 'admin'), updateVerificationStatus);
+
+router.route('/:id/verifications')
+  .get(authorize('coordinator', 'admin'), getVerificationHistory);
+
+router.route('/:id/versions')
+  .get(getDocumentVersions);
+
+router.route('/:id/versions/:versionId/restore')
+  .post(restoreDocumentVersion);
+  
+router.route('/:id/download')
+  .get(downloadDocument);
+
+router.route('/:id/versions/:versionId/download')
+  .get(downloadDocumentVersion);
 
 export default router;
