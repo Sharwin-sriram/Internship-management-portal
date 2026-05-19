@@ -22,7 +22,9 @@ export const getDocumentVersions = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    const versions = await DocumentVersion.find({ document: documentId }).sort('-version_number');
+    const versions = await DocumentVersion.find({ document: documentId })
+      .select('-file_data')
+      .sort('-version_number');
 
     res.status(200).json({
       success: true,

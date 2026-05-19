@@ -106,7 +106,14 @@ export const getDocuments = async (req, res) => {
     }
     // Coordinators and admins can see all documents
 
-    const documents = await Document.find(query).populate('user', 'name email role');
+    const { doc_type } = req.query;
+    if (doc_type) {
+      query.doc_type = doc_type;
+    }
+
+    const documents = await Document.find(query)
+      .select('-file_data')
+      .populate('user', 'name email role');
 
     res.status(200).json({
       success: true,

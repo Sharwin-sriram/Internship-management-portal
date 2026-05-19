@@ -28,6 +28,12 @@ const studentSchema = new mongoose.Schema(
         type: String,
       },
     ],
+    skillProficiencies: [
+      {
+        skill: { type: String },
+        proficiency: { type: Number, min: 0, max: 100 },
+      },
+    ],
     placement_eligible: {
       type: Boolean,
       default: true,
