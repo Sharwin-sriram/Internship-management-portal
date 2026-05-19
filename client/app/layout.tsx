@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
 import Header from "../components/Header";
+import AppProviders from "../components/AppProviders";
 
 export const metadata: Metadata = {
   title: "Internship Portal — Find & Manage Internships",
@@ -16,8 +17,10 @@ export default function RootLayout({
     <html lang="en" data-scroll-behavior="smooth">
       <body>
         <AuthProvider>
-          <Header />
-          <main style={{ minHeight: "calc(100vh - 64px)" }}>{children}</main>
+          <AppProviders>
+            <Header />
+            <main style={{ minHeight: "calc(100vh - 64px)" }}>{children}</main>
+          </AppProviders>
         </AuthProvider>
       </body>
     </html>
