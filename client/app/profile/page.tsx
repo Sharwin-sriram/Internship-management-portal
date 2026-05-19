@@ -5,6 +5,8 @@ import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { getJson, putJson } from "../../lib/api";
 import Button from "../../components/ui/Button";
+import ResumeSection from "../../components/student/ResumeSection";
+import ProficiencyBar from "../../components/ui/ProficiencyBar";
 import {
   FiUser,
   FiMail,
@@ -34,7 +36,24 @@ type StudentProfile = {
   cgpa: number;
   graduation_year: number;
   skills: string[];
+  skillProficiencies?: Record<string, number>;
+  projects?: ProjectEntry[];
   placement_eligible: boolean;
+};
+
+type ProjectEntry = {
+  title: string;
+  desc: string;
+};
+
+type ResumeMeta = {
+  id: string;
+  original_name: string;
+  version: number;
+  mime_type: string;
+  is_verified: boolean;
+  uploaded_at: string;
+  updatedAt: string;
 };
 
 type CompanyProfile = {
@@ -68,7 +87,10 @@ export default function ProfilePage() {
     skills: [],
     placement_eligible: true,
   });
-  const [skillsInput, setSkillsInput] = useState("");
+  type SkillEntry = { name: string; proficiency: number };
+  const [skillEntries, setSkillEntries] = useState<SkillEntry[]>([]);
+  const [projectEntries, setProjectEntries] = useState<ProjectEntry[]>([]);
+  const [resume, setResume] = useState<ResumeMeta | null>(null);
 
   // Company State
   const [companyDetails, setCompanyDetails] = useState<CompanyProfile>({
@@ -103,6 +125,7 @@ export default function ProfilePage() {
           user: UserProfile;
           student?: StudentProfile;
           company?: CompanyProfile;
+          resume?: ResumeMeta;
         };
       }>("/profile");
       if (res.ok && res.body?.success) {
@@ -110,11 +133,29 @@ export default function ProfilePage() {
         setUserAvatar(res.body.data.user.avatar || "");
         if (res.body.data.student) {
           setStudentDetails(res.body.data.student);
-          setSkillsInput(res.body.data.student.skills.join(", "));
+          const fetchedSkills: string[] = res.body.data.student.skills || [];
+          const profs: Record<string, number> =
+            res.body.data.student.skillProficiencies ||
+            res.body.data.student.skillProficiencies ||
+            {};
+          const entries = fetchedSkills.map((s: string) => ({
+            name: s,
+            proficiency: profs[s] ?? Math.min(95, 40 + s.length * 6),
+          }));
+          setSkillEntries(entries);
+          setProjectEntries(
+            Array.isArray(res.body.data.student.projects)
+              ? res.body.data.student.projects.map((project) => ({
+                  title: project.title || "",
+                  desc: project.desc || "",
+                }))
+              : [],
+          );
         }
         if (res.body.data.company) {
           setCompanyDetails(res.body.data.company);
         }
+        setResume(res.body.data.resume ?? null);
       }
     } catch (error) {
       console.error("Failed to fetch profile", error);
@@ -136,11 +177,17 @@ export default function ProfilePage() {
       if (user?.role === "student") {
         payload.studentDetails = {
           ...studentDetails,
-          skills: skillsInput
-            .split(",")
-            .map((s) => s.trim())
-            .filter((s) => s),
+          skills: skillEntries.map((s) => s.name),
+          projects: projectEntries
+            .filter((project) => project.title.trim() || project.desc.trim())
+            .map((project) => ({
+              title: project.title.trim(),
+              desc: project.desc.trim(),
+            })),
         };
+        payload.studentSkillProficiencies = Object.fromEntries(
+          skillEntries.map((s) => [s.name, s.proficiency]),
+        );
       } else if (user?.role === "company") {
         payload.companyDetails = companyDetails;
       }
@@ -315,7 +362,7 @@ export default function ProfilePage() {
         <div
           style={{
             position: "absolute",
-            bottom: -50,
+            bottom: -60,
             right: 40,
             display: "flex",
             gap: "var(--space-sm)",
@@ -335,9 +382,6 @@ export default function ProfilePage() {
                 }}
               >
                 <FiX /> Cancel
-              </Button>
-              <Button variant="primary" onClick={handleSave} loading={saving}>
-                <FiSave /> Save Changes
               </Button>
             </>
           )}
@@ -605,21 +649,228 @@ export default function ProfilePage() {
                       marginBottom: 8,
                     }}
                   >
-                    Skills (comma separated)
+                    Skills & Proficiency
                   </label>
-                  <input
-                    type="text"
-                    value={skillsInput}
-                    onChange={(e) => setSkillsInput(e.target.value)}
-                    placeholder="React, Node.js, Python..."
+                  <div
                     style={{
-                      width: "100%",
-                      padding: "10px 14px",
-                      borderRadius: "var(--radius)",
-                      border: "1px solid var(--color-border)",
-                      background: "var(--color-background)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
                     }}
-                  />
+                  >
+                    {skillEntries.map((entry, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          alignItems: "center",
+                        }}
+                      >
+                        <input
+                          value={entry.name}
+                          onChange={(e) => {
+                            const newEntries = [...skillEntries];
+                            newEntries[idx] = {
+                              ...entry,
+                              name: e.target.value,
+                            };
+                            setSkillEntries(newEntries);
+                          }}
+                          placeholder="Skill name"
+                          style={{
+                            flex: "1 1 200px",
+                            padding: "8px 10px",
+                            borderRadius: "6px",
+                            border: "1px solid var(--color-border)",
+                          }}
+                        />
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={entry.proficiency}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value || "0");
+                            const newEntries = [...skillEntries];
+                            newEntries[idx] = { ...entry, proficiency: val };
+                            setSkillEntries(newEntries);
+                          }}
+                          style={{ width: 160 }}
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={entry.proficiency}
+                          onChange={(e) => {
+                            let val = parseInt(e.target.value || "0");
+                            if (isNaN(val)) val = 0;
+                            val = Math.max(0, Math.min(100, val));
+                            const newEntries = [...skillEntries];
+                            newEntries[idx] = { ...entry, proficiency: val };
+                            setSkillEntries(newEntries);
+                          }}
+                          style={{
+                            width: 64,
+                            padding: "8px 10px",
+                            borderRadius: "6px",
+                            border: "1px solid var(--color-border)",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSkillEntries(
+                              skillEntries.filter((_, i) => i !== idx),
+                            );
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "var(--color-muted)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSkillEntries([
+                            ...skillEntries,
+                            { name: "", proficiency: 60 },
+                          ])
+                        }
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-surface)",
+                        }}
+                      >
+                        Add skill
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "var(--font-size-sm)",
+                      fontWeight: 600,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Top Projects
+                  </label>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                    }}
+                  >
+                    {projectEntries.map((project, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr",
+                          gap: 8,
+                          padding: 12,
+                          borderRadius: "var(--radius)",
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-background)",
+                        }}
+                      >
+                        <input
+                          type="text"
+                          value={project.title}
+                          onChange={(e) => {
+                            const next = [...projectEntries];
+                            next[idx] = { ...project, title: e.target.value };
+                            setProjectEntries(next);
+                          }}
+                          placeholder="Project title"
+                          style={{
+                            width: "100%",
+                            padding: "10px 12px",
+                            borderRadius: "var(--radius)",
+                            border: "1px solid var(--color-border)",
+                            background: "var(--color-surface)",
+                          }}
+                        />
+                        <textarea
+                          rows={3}
+                          value={project.desc}
+                          onChange={(e) => {
+                            const next = [...projectEntries];
+                            next[idx] = { ...project, desc: e.target.value };
+                            setProjectEntries(next);
+                          }}
+                          placeholder="Short description of what you built"
+                          style={{
+                            width: "100%",
+                            padding: "10px 12px",
+                            borderRadius: "var(--radius)",
+                            border: "1px solid var(--color-border)",
+                            background: "var(--color-surface)",
+                            fontFamily: "inherit",
+                            resize: "none",
+                          }}
+                        />
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProjectEntries(
+                                projectEntries.filter((_, i) => i !== idx),
+                              );
+                            }}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: "var(--color-muted)",
+                              cursor: "pointer",
+                              fontSize: "var(--font-size-sm)",
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setProjectEntries([
+                            ...projectEntries,
+                            { title: "", desc: "" },
+                          ])
+                        }
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-surface)",
+                        }}
+                      >
+                        Add project
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -708,24 +959,21 @@ export default function ProfilePage() {
                     style={{
                       display: "flex",
                       flexWrap: "wrap",
-                      gap: "var(--space-sm)",
+                      gap: "var(--space-lg)",
                     }}
                   >
-                    {studentDetails.skills?.length > 0 ? (
-                      studentDetails.skills.map((s) => (
-                        <span
-                          key={s}
-                          style={{
-                            padding: "6px 12px",
-                            background: "var(--color-primary-10)",
-                            color: "var(--color-primary)",
-                            borderRadius: 999,
-                            fontSize: "var(--font-size-sm)",
-                            fontWeight: 600,
-                          }}
+                    {skillEntries?.length > 0 ? (
+                      skillEntries.map((entry) => (
+                        <div
+                          key={entry.name}
+                          style={{ minWidth: 200, flex: "1 1 200px" }}
                         >
-                          {s}
-                        </span>
+                          <ProficiencyBar
+                            label={entry.name}
+                            value={entry.proficiency}
+                            ariaLabel={`${entry.name} proficiency`}
+                          />
+                        </div>
                       ))
                     ) : (
                       <span
@@ -739,10 +987,66 @@ export default function ProfilePage() {
                     )}
                   </div>
                 </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <div
+                    style={{
+                      fontSize: "var(--font-size-sm)",
+                      color: "var(--color-muted)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Top Projects
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                    }}
+                  >
+                    {projectEntries?.length > 0 ? (
+                      projectEntries.map((project, idx) => (
+                        <div
+                          key={`${project.title}-${idx}`}
+                          style={{
+                            padding: 14,
+                            borderRadius: "var(--radius-lg)",
+                            border: "1px solid var(--color-border)",
+                            background: "var(--color-background)",
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                            {project.title || "Untitled project"}
+                          </div>
+                          <div
+                            style={{
+                              color: "var(--color-muted)",
+                              fontSize: "var(--font-size-sm)",
+                              lineHeight: 1.6,
+                            }}
+                          >
+                            {project.desc || "No description added"}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <span
+                        style={{
+                          color: "var(--color-muted)",
+                          fontSize: "var(--font-size-sm)",
+                        }}
+                      >
+                        No projects added
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </section>
         )}
+
+        {user.role === "student" && <ResumeSection initialResume={resume} />}
 
         {user.role === "company" && (
           <section
@@ -1008,6 +1312,20 @@ export default function ProfilePage() {
               </div>
             )}
           </section>
+        )}
+
+        {editing && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginTop: "calc(var(--space-xl) * -0.25)",
+            }}
+          >
+            <Button variant="primary" onClick={handleSave} loading={saving}>
+              <FiSave /> Save Changes
+            </Button>
+          </div>
         )}
       </div>
     </div>

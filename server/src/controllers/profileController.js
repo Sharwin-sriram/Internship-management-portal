@@ -1,6 +1,7 @@
 import User from "../models/user.js";
 import Student from "../models/Student.js";
 import Company from "../models/Company.js";
+import Document from "../models/Document.js";
 
 // @desc    Get user profile
 // @route   GET /api/profile
@@ -20,7 +21,58 @@ export const getProfile = async (req, res) => {
     if (user.role === "student") {
       const student = await Student.findOne({ user: user._id });
       if (student) {
-        profileData.student = student;
+        // Normalize skillProficiencies to a plain object for API consumers.
+        const studentObj = student.toObject();
+        let profObj = {};
+
+        // Case 1: stored as array of { skill, proficiency }
+        if (Array.isArray(studentObj.skillProficiencies)) {
+          studentObj.skillProficiencies.forEach((p) => {
+            if (p && p.skill)
+              profObj[p.skill] =
+                typeof p.proficiency === "number"
+                  ? p.proficiency
+                  : Number(p.proficiency) || 0;
+          });
+        }
+
+        // Case 2: stored as a Mongoose Map on the document (not toObject)
+        else if (
+          student.skillProficiencies &&
+          student.skillProficiencies instanceof Map
+        ) {
+          profObj = Object.fromEntries(student.skillProficiencies);
+        }
+
+        // Case 3: stored as a plain object mapping skill->number
+        else if (
+          studentObj.skillProficiencies &&
+          typeof studentObj.skillProficiencies === "object"
+        ) {
+          Object.keys(studentObj.skillProficiencies).forEach((k) => {
+            profObj[k] = Number(studentObj.skillProficiencies[k]) || 0;
+          });
+        }
+
+        studentObj.skillProficiencies = profObj;
+        profileData.student = studentObj;
+      }
+
+      const resume = await Document.findOne({
+        user: user._id,
+        doc_type: "resume",
+      }).select("-file_data");
+
+      if (resume) {
+        profileData.resume = {
+          id: resume._id,
+          original_name: resume.original_name,
+          version: resume.version,
+          mime_type: resume.mime_type,
+          is_verified: resume.is_verified,
+          uploaded_at: resume.uploaded_at,
+          updatedAt: resume.updatedAt,
+        };
       }
     } else if (user.role === "company") {
       const company = await Company.findOne({ user: user._id });
@@ -42,6 +94,61 @@ export const getProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getProfile:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// @desc    Get profile by ID
+// @route   GET /api/profile/:id
+// @access  Private
+export const getProfileById = async (req, res) => {
+  try {
+    let user = await User.findById(req.params.id).select("-password -cart");
+
+    if (!user) {
+      // Maybe the ID provided is a Student document ID instead of a User document ID
+      const student = await Student.findById(req.params.id);
+      if (student && student.user) {
+        user = await User.findById(student.user).select("-password -cart");
+      }
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    let profileData = { user };
+
+    if (user.role === "student") {
+      const student = await Student.findOne({ user: user._id });
+      if (student) {
+        profileData.student = student.toObject();
+      }
+
+      const resume = await Document.findOne({
+        user: user._id,
+        doc_type: "resume",
+      }).select("-file_data");
+
+      if (resume) {
+        profileData.resume = {
+          id: resume._id,
+          original_name: resume.original_name,
+        };
+      }
+    } else if (user.role === "company") {
+      const company = await Company.findOne({ user: user._id });
+      if (company) {
+        profileData.company = company.toObject();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: profileData,
+    });
+  } catch (error) {
+    console.error("Error in getProfileById:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -87,6 +194,8 @@ export const updateProfile = async (req, res) => {
 
     let updatedDetails = null;
 
+    const { studentSkillProficiencies } = req.body;
+
     if (req.user.role === "student" && studentDetails) {
       const studentUpdate = {};
 
@@ -114,8 +223,27 @@ export const updateProfile = async (req, res) => {
       if (Array.isArray(studentDetails.skills)) {
         studentUpdate.skills = studentDetails.skills;
       }
+      if (
+        studentSkillProficiencies &&
+        typeof studentSkillProficiencies === "object"
+      ) {
+        // Convert incoming object (name -> value) into array of subdocs [{skill, proficiency}]
+        const arr = Object.entries(studentSkillProficiencies).map(([k, v]) => {
+          let num = Number(v);
+          if (isNaN(num)) num = 0;
+          num = Math.max(0, Math.min(100, Math.round(num)));
+          return { skill: k, proficiency: num };
+        });
+        studentUpdate.skillProficiencies = arr;
+      }
       if (typeof studentDetails.placement_eligible === "boolean") {
         studentUpdate.placement_eligible = studentDetails.placement_eligible;
+      }
+      if (typeof studentDetails.bio === "string") {
+        studentUpdate.bio = studentDetails.bio.trim();
+      }
+      if (Array.isArray(studentDetails.projects)) {
+        studentUpdate.projects = studentDetails.projects;
       }
 
       const existingStudent = await Student.findOne({ user: req.user._id });

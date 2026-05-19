@@ -37,13 +37,16 @@ interface DashboardMetrics {
   offerConversionRate: number;
   pendingActions: number;
   approvalStatus: string;
-  recommendedInterns?: {
+  internships?: {
     id: string;
-    name: string;
-    branch: string;
-    cgpa: number;
-    skills: string[];
-    graduationYear: number;
+    role: string;
+    location: string;
+    type: string;
+    stipend: string;
+    duration: string;
+    applicants: number;
+    status: 'active' | 'draft' | 'closed';
+    postedDate: string;
   }[];
 }
 
@@ -216,15 +219,15 @@ export default function CompanyDashboardPage() {
             <div style={{ display: 'flex', gap: 12 }}>
               <button
                 type="button"
-                onClick={() => router.push('/dashboard/company/profile')}
-                style={{ padding: '10px 14px', borderRadius: 10, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700 }}
+                onClick={() => router.push('/profile')}
+                style={{ padding: '10px 14px', borderRadius: 10, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
               >
                 Complete now
               </button>
               <button
                 type="button"
                 onClick={handleSkipProfilePrompt}
-                style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(30,64,175,0.4)', background: '#fff', color: '#1e3a8a', fontWeight: 700 }}
+                style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(30,64,175,0.4)', background: '#fff', color: '#1e3a8a', fontWeight: 700, cursor: 'pointer' }}
               >
                 Skip for now
               </button>
@@ -346,19 +349,19 @@ export default function CompanyDashboardPage() {
           </div>
         </div>
 
-        {/* Recommended Interns */}
-        {metrics?.recommendedInterns && metrics.recommendedInterns.length > 0 && (
+        {/* Your Internships */}
+        {metrics?.internships && metrics.internships.length > 0 && (
           <div style={{ marginBottom: '3rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Recommended Interns</h2>
-              <Link href="/dashboard/company/talent" style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-primary)', textDecoration: 'none' }}>
-                Search Talent Pool →
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Your Internships</h2>
+              <Link href="/dashboard/company/post" style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-primary)', textDecoration: 'none' }}>
+                Post New Internship →
               </Link>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.25rem' }}>
-              {metrics.recommendedInterns.map((intern) => (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+              {metrics.internships.map((internship) => (
                 <div 
-                  key={intern.id} 
+                  key={internship.id} 
                   style={{ 
                     background: '#fff', 
                     borderRadius: 18, 
@@ -379,35 +382,45 @@ export default function CompanyDashboardPage() {
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 8px 24px rgba(15,23,42,0.04)';
                   }}
-                  onClick={() => router.push('/dashboard/company/talent')}
+                  onClick={() => router.push(`/dashboard/company/internships/${internship.id}`)}
                 >
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                      <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--color-primary-10)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '1.1rem' }}>
-                        {intern.name.charAt(0).toUpperCase()}
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div>
-                        <strong style={{ display: 'block', fontSize: '1rem', color: '#0f172a' }}>{intern.name}</strong>
-                        <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{intern.branch} · CGPA {intern.cgpa}</span>
+                        <strong style={{ display: 'block', fontSize: '1.1rem', color: '#0f172a', marginBottom: 4 }}>{internship.role}</strong>
+                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{internship.location} · {internship.type}</span>
                       </div>
+                      <span style={{ 
+                        padding: '4px 10px', 
+                        borderRadius: 999, 
+                        fontSize: '0.7rem', 
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        background: internship.status === 'active' ? 'rgba(34,197,94,0.12)' : internship.status === 'draft' ? 'rgba(245,158,11,0.12)' : 'rgba(148,163,184,0.12)',
+                        color: internship.status === 'active' ? '#15803d' : internship.status === 'draft' ? '#92400e' : '#475569'
+                      }}>
+                        {internship.status}
+                      </span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-                      {intern.skills.slice(0, 3).map((skill: string) => (
-                        <span key={skill} style={{ padding: '4px 8px', borderRadius: 999, background: '#f1f5f9', color: '#475569', fontSize: '0.72rem', fontWeight: 600 }}>
-                          {skill}
-                        </span>
-                      ))}
-                      {intern.skills.length > 3 && (
-                        <span style={{ padding: '4px 8px', borderRadius: 999, background: '#f1f5f9', color: '#94a3b8', fontSize: '0.72rem', fontWeight: 600 }}>
-                          +{intern.skills.length - 3} more
-                        </span>
-                      )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: '#475569' }}>
+                        <span style={{ fontWeight: 600 }}>💰</span>
+                        <span>{internship.stipend}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: '#475569' }}>
+                        <span style={{ fontWeight: 600 }}>⏱️</span>
+                        <span>{internship.duration}</span>
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, fontSize: '0.8rem', color: '#94a3b8' }}>
-                    <span>Graduating: {intern.graduationYear}</span>
-                    <span style={{ color: 'var(--color-primary)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      Unlock Profile
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 14, borderTop: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: '0.85rem' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--color-primary)', fontSize: '1.1rem' }}>{internship.applicants}</span>
+                      <span style={{ color: '#94a3b8', marginLeft: 4 }}>applicants</span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      Posted {new Date(internship.postedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
                 </div>

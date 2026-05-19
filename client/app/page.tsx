@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useAuth } from '../context/AuthContext';
 
 const features = [
   {
@@ -50,6 +51,7 @@ const stats = [
 ];
 
 export default function HomePage() {
+  const { user } = useAuth();
   return (
     <div style={{ overflowX: 'hidden' }}>
 
@@ -80,20 +82,32 @@ export default function HomePage() {
             </p>
 
             <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
-              <Link href="/register" id="cta-get-started" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 'var(--radius)',
-                background: 'var(--gradient-brand)', color: 'white', fontWeight: 700, fontSize: 'var(--font-size-base)',
-                border: 'none', boxShadow: '0 6px 20px rgba(34,151,250,0.40)', letterSpacing: '0.01em', textDecoration: 'none',
-              }}>
-                Get started free →
-              </Link>
-              <Link href="/login" id="cta-signin" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 'var(--radius)',
-                background: 'white', color: 'var(--color-foreground)', fontWeight: 600, fontSize: 'var(--font-size-base)',
-                border: '1.5px solid var(--color-border)', textDecoration: 'none',
-              }}>
-                Sign in
-              </Link>
+              {user && user.role !== 'company' ? (
+                <Link href="/explore" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 'var(--radius)',
+                  background: 'var(--gradient-brand)', color: 'white', fontWeight: 700, fontSize: 'var(--font-size-base)',
+                  border: 'none', boxShadow: '0 6px 20px rgba(34,151,250,0.40)', letterSpacing: '0.01em', textDecoration: 'none',
+                }}>
+                  Explore Internships →
+                </Link>
+              ) : (
+                <>
+                  <Link href="/register" id="cta-get-started" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 'var(--radius)',
+                    background: 'var(--gradient-brand)', color: 'white', fontWeight: 700, fontSize: 'var(--font-size-base)',
+                    border: 'none', boxShadow: '0 6px 20px rgba(34,151,250,0.40)', letterSpacing: '0.01em', textDecoration: 'none',
+                  }}>
+                    Get started free →
+                  </Link>
+                  <Link href="/login" id="cta-signin" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 'var(--radius)',
+                    background: 'white', color: 'var(--color-foreground)', fontWeight: 600, fontSize: 'var(--font-size-base)',
+                    border: '1.5px solid var(--color-border)', textDecoration: 'none',
+                  }}>
+                    Sign in
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
@@ -182,12 +196,20 @@ export default function HomePage() {
             <h2 style={{ fontSize: 'clamp(1.75rem,4vw,2.5rem)', fontWeight: 800, color: 'white', marginBottom: 'var(--space-md)', letterSpacing: '-0.02em', position: 'relative' }}>Ready to find your internship?</h2>
             <p style={{ fontSize: 'var(--font-size-lg)', color: 'rgba(255,255,255,0.8)', marginBottom: 'var(--space-xl)', lineHeight: 1.7, maxWidth: 480, margin: '0 auto var(--space-xl)', position: 'relative' }}>Join thousands of students and companies already using InternHub.</p>
             <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', flexWrap: 'wrap', position: 'relative' }}>
-              <Link href="/register" id="cta-bottom-register" style={{ padding: '14px 32px', borderRadius: 'var(--radius)', background: 'white', color: 'var(--color-primary)', fontWeight: 700, fontSize: 'var(--font-size-base)', textDecoration: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.15)' }}>
-                Create your account
-              </Link>
-              <Link href="/login" id="cta-bottom-login" style={{ padding: '14px 32px', borderRadius: 'var(--radius)', background: 'rgba(255,255,255,0.15)', color: 'white', fontWeight: 600, fontSize: 'var(--font-size-base)', border: '1.5px solid rgba(255,255,255,0.35)', textDecoration: 'none' }}>
-                Sign in
-              </Link>
+              {user && user.role !== 'company' ? (
+                <Link href="/explore" style={{ padding: '14px 32px', borderRadius: 'var(--radius)', background: 'white', color: 'var(--color-primary)', fontWeight: 700, fontSize: 'var(--font-size-base)', textDecoration: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.15)' }}>
+                  Explore Internships
+                </Link>
+              ) : (
+                <>
+                  <Link href="/register" id="cta-bottom-register" style={{ padding: '14px 32px', borderRadius: 'var(--radius)', background: 'white', color: 'var(--color-primary)', fontWeight: 700, fontSize: 'var(--font-size-base)', textDecoration: 'none', boxShadow: '0 6px 20px rgba(0,0,0,0.15)' }}>
+                    Create your account
+                  </Link>
+                  <Link href="/login" id="cta-bottom-login" style={{ padding: '14px 32px', borderRadius: 'var(--radius)', background: 'rgba(255,255,255,0.15)', color: 'white', fontWeight: 600, fontSize: 'var(--font-size-base)', border: '1.5px solid rgba(255,255,255,0.35)', textDecoration: 'none' }}>
+                    Sign in
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
