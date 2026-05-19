@@ -59,6 +59,13 @@ const interviewerLinks = [
   { label: 'Provide Feedback',   icon: '📝', desc: 'Evaluate candidates after interviews', href: '/dashboard/interviewer/feedback' },
 ];
 
+const studentLinks = [
+  { label: 'Browse Internships', icon: '🔍', desc: 'Search and apply to internships', href: '/internships' },
+  { label: 'My Applications',    icon: '📋', desc: 'Track your application status', href: '/dashboard/applications' },
+  { label: 'Saved Internships',  icon: '⭐', desc: 'View your saved listings', href: '/dashboard/saved' },
+  { label: 'My Profile',         icon: '👤', desc: 'Update your profile and resume', href: '/profile' },
+];
+
 const roleLinks: Record<string, typeof studentLinks> = {
   student: studentLinks,
   company: companyLinks,

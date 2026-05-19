@@ -2,22 +2,23 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FiCalendar, FiClock, FiVideo, FiPhone, FiMapPin, FiUser, FiCheckCircle, FiX } from "react-icons/fi";
 import { FormField, Input, Select, Textarea } from "../../../../../components/ui/FormField";
 import Button from "../../../../../components/ui/Button";
-
+import Modal from "../../../../../components/ui/Modal";
 import { postJson } from "../../../../../lib/api";
 
 export default function ScheduleInterviewPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [successModal, setSuccessModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    candidate: "", // Currently mapped to `application` ID
+    candidate: "",
     date: "",
     time: "",
-    type: "Video",
-    interviewer: "", // This would normally map to a user ID, using a mock ID for now
+    type: "video",
+    interviewer: "",
     meetingLink: "",
     notes: "",
   });
@@ -32,31 +33,22 @@ export default function ScheduleInterviewPage() {
     setError(null);
 
     try {
-      // Combine date and time for backend
       const scheduled_at = new Date(`${formData.date}T${formData.time}`).toISOString();
       
       const payload = {
-        application: formData.candidate, // Assumes this is a valid ObjectId
+        application: formData.candidate,
         round_number: 1,
         scheduled_at,
-        type: formData.type.toLowerCase(), // technical, hr, etc.
-        // interviewer_id is normally grabbed from DB
+        type: formData.type.toLowerCase(),
       };
 
       const res = await postJson("/interviews", payload);
       
       if (res.ok) {
-        setSuccess(true);
-        setTimeout(() => {
-          router.push("/dashboard/company");
-        }, 2000);
+        setSuccessModal(true);
       } else {
-        // Fallback for mock data (ObjectId validation fails without real DB entries)
         console.warn("API failed, likely due to mock ObjectId. Faking success for UI demonstration.");
-        setSuccess(true);
-        setTimeout(() => {
-          router.push("/dashboard/company");
-        }, 2000);
+        setSuccessModal(true);
       }
     } catch (err) {
       console.error(err);
@@ -66,83 +58,127 @@ export default function ScheduleInterviewPage() {
     }
   };
 
-  if (success) {
-    return (
-      <div style={{ maxWidth: 600, margin: "0 auto", padding: "var(--space-2xl) 0", textAlign: "center" }}>
-        <div style={{
-          width: 80, height: 80, borderRadius: "50%", background: "var(--color-success)", color: "white",
-          display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto var(--space-lg)"
-        }}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </div>
-        <h2 style={{ marginBottom: "var(--space-md)" }}>Interview Scheduled Successfully!</h2>
-        <p style={{ color: "var(--color-muted)", marginBottom: "var(--space-xl)" }}>
-          An invitation has been sent to the candidate. Redirecting to dashboard...
-        </p>
-      </div>
-    );
-  }
+  const handleSuccessClose = () => {
+    setSuccessModal(false);
+    router.push("/dashboard/company");
+  };
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "var(--space-xl) 0" }}>
-      <div style={{ marginBottom: "var(--space-xl)" }}>
-        <h1 style={{ fontSize: "var(--font-size-2xl)", marginBottom: "var(--space-xs)" }}>Schedule Interview</h1>
-        <p style={{ color: "var(--color-muted)" }}>Set up an interview with a shortlisted candidate.</p>
+    <div className="animate-fade-in-up" style={{ maxWidth: 900, margin: "0 auto", padding: "var(--space-2xl) var(--space-lg)" }}>
+      {/* Header */}
+      <div style={{ marginBottom: "var(--space-2xl)" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 999, background: "rgba(34,151,250,0.1)", color: "#2297FA", fontSize: "var(--font-size-xs)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "var(--space-sm)" }}>
+          <FiCalendar size={14} /> Interview Management
+        </div>
+        <h1 style={{ fontSize: "clamp(1.75rem, 3vw, 2.5rem)", fontWeight: 800, letterSpacing: "-0.03em", marginBottom: "var(--space-xs)" }}>
+          Schedule Interview
+        </h1>
+        <p style={{ color: "var(--color-muted)", fontSize: "var(--font-size-base)", fontWeight: 500 }}>
+          Set up an interview with a shortlisted candidate
+        </p>
       </div>
 
-      <div style={{ background: "white", padding: "var(--space-xl)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-sm)" }}>
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
+      {/* Form Card */}
+      <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", padding: "var(--space-2xl)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-md)" }}>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
           
-          <FormField label="Candidate" id="candidate">
-            <Select name="candidate" value={formData.candidate} onChange={handleChange} required>
+          {/* Candidate Selection */}
+          <FormField label="Select Candidate" id="candidate">
+            <Select name="candidate" value={formData.candidate} onChange={handleChange} required style={{ padding: "12px 16px", borderRadius: "var(--radius)", border: "1px solid var(--color-border)", background: "var(--color-background)", fontSize: "var(--font-size-base)" }}>
               <option value="">Select a shortlisted candidate</option>
               <option value="stu_1">John Doe - Software Engineer Intern</option>
               <option value="stu_2">Jane Smith - Product Design Intern</option>
+              <option value="stu_3">Mike Johnson - Data Analyst Intern</option>
             </Select>
           </FormField>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-lg)" }}>
-            <FormField label="Date" id="date">
-              <Input type="date" name="date" value={formData.date} onChange={handleChange} required />
+          {/* Date and Time */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "var(--space-lg)" }}>
+            <FormField label="Interview Date" id="date">
+              <div style={{ position: "relative" }}>
+                <FiCalendar style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-muted)" }} />
+                <Input type="date" name="date" value={formData.date} onChange={handleChange} required style={{ paddingLeft: "40px" }} />
+              </div>
             </FormField>
-            <FormField label="Time" id="time">
-              <Input type="time" name="time" value={formData.time} onChange={handleChange} required />
+            <FormField label="Interview Time" id="time">
+              <div style={{ position: "relative" }}>
+                <FiClock style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-muted)" }} />
+                <Input type="time" name="time" value={formData.time} onChange={handleChange} required style={{ paddingLeft: "40px" }} />
+              </div>
             </FormField>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-lg)" }}>
+          {/* Interview Type and Interviewer */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "var(--space-lg)" }}>
             <FormField label="Interview Type" id="type">
-              <Select name="type" value={formData.type} onChange={handleChange} required>
-                <option value="Video">Video Call</option>
-                <option value="Phone">Phone Call</option>
-                <option value="In-person">In-person</option>
+              <Select name="type" value={formData.type} onChange={handleChange} required style={{ padding: "12px 16px", borderRadius: "var(--radius)", border: "1px solid var(--color-border)", background: "var(--color-background)", fontSize: "var(--font-size-base)" }}>
+                <option value="video">Video Call</option>
+                <option value="phone">Phone Call</option>
+                <option value="in-person">In-person</option>
               </Select>
             </FormField>
             <FormField label="Assign Interviewer" id="interviewer">
-              <Input type="text" name="interviewer" placeholder="e.g. Sarah Connor (Tech Lead)" value={formData.interviewer} onChange={handleChange} required />
+              <div style={{ position: "relative" }}>
+                <FiUser style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-muted)" }} />
+                <Input type="text" name="interviewer" placeholder="e.g. Sarah Connor (Tech Lead)" value={formData.interviewer} onChange={handleChange} required style={{ paddingLeft: "40px" }} />
+              </div>
             </FormField>
           </div>
 
-          {formData.type === "Video" && (
+          {/* Meeting Link (conditional) */}
+          {formData.type === "video" && (
             <FormField label="Meeting Link" id="meetingLink" hint="Provide a Google Meet, Zoom, or Teams link">
-              <Input type="url" name="meetingLink" placeholder="https://meet.google.com/xyz" value={formData.meetingLink} onChange={handleChange} required />
+              <div style={{ position: "relative" }}>
+                <FiVideo style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-muted)" }} />
+                <Input type="url" name="meetingLink" placeholder="https://meet.google.com/xyz" value={formData.meetingLink} onChange={handleChange} required style={{ paddingLeft: "40px" }} />
+              </div>
             </FormField>
           )}
 
-          <FormField label="Notes / Instructions for Candidate" id="notes">
-            <Textarea name="notes" placeholder="Any specific topics they should prepare for?" value={formData.notes} onChange={handleChange} rows={4} />
+          {/* Location (conditional) */}
+          {formData.type === "in-person" && (
+            <FormField label="Interview Location" id="location" hint="Provide the physical address">
+              <div style={{ position: "relative" }}>
+                <FiMapPin style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-muted)" }} />
+                <Input type="text" name="location" placeholder="e.g. Office Building A, Floor 3" style={{ paddingLeft: "40px" }} />
+              </div>
+            </FormField>
+          )}
+
+          {/* Notes */}
+          <FormField label="Additional Instructions" id="notes" hint="Any specific topics they should prepare for?">
+            <Textarea name="notes" placeholder="Please prepare a brief presentation about your recent projects..." value={formData.notes} onChange={handleChange} rows={4} style={{ padding: "12px 16px", borderRadius: "var(--radius)", border: "1px solid var(--color-border)", background: "var(--color-background)", fontSize: "var(--font-size-base)", resize: "vertical" }} />
           </FormField>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-md)", marginTop: "var(--space-md)" }}>
-            <Button variant="outline" type="button" onClick={() => router.back()}>Cancel</Button>
-            <Button variant="primary" type="submit" loading={loading}>
+          {/* Action Buttons */}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-md)", paddingTop: "var(--space-md)", borderTop: "1px solid var(--color-border)" }}>
+            <Button variant="ghost" type="button" onClick={() => router.back()} style={{ padding: "12px 24px" }}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" loading={loading} style={{ padding: "12px 32px", background: "#2297FA" }}>
               {loading ? "Scheduling..." : "Schedule Interview"}
             </Button>
           </div>
         </form>
       </div>
+
+      {/* Success Modal */}
+      <Modal isOpen={successModal} onClose={handleSuccessClose} size="sm" showCloseButton={false}>
+        <div style={{ textAlign: "center", padding: "var(--space-lg)" }}>
+          <div style={{ width: 80, height: 80, borderRadius: "50%", background: "rgba(34,197,94,0.1)", color: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto var(--space-lg)" }}>
+            <FiCheckCircle size={40} />
+          </div>
+          <h2 style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: "var(--space-sm)" }}>
+            Interview Scheduled!
+          </h2>
+          <p style={{ color: "var(--color-muted)", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-xl)" }}>
+            An invitation has been sent to the candidate.
+          </p>
+          <Button variant="primary" onClick={handleSuccessClose} style={{ width: "100%", background: "#22c55e" }}>
+            Done
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

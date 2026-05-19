@@ -1,15 +1,19 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import InterviewCard from "../../../../components/interview/InterviewCard";
-import Timeline from "../../../../components/interview/Timeline";
+import { FiCalendar, FiClock, FiCheckCircle, FiX, FiRefreshCw } from "react-icons/fi";
+import InterviewCard from "../../../../components/interviews/InterviewCard";
+import Modal from "../../../../components/ui/Modal";
+import Button from "../../../../components/ui/Button";
 import { getJson, patchJson } from "../../../../lib/api";
 
 export default function StudentInterviewsPage() {
   const [activeTab, setActiveTab] = useState<"invitations" | "history">("invitations");
   const [loading, setLoading] = useState(true);
+  const [rescheduleModal, setRescheduleModal] = useState(false);
+  const [selectedInterview, setSelectedInterview] = useState<any>(null);
+  const [rescheduleReason, setRescheduleReason] = useState("");
   
-  // These would be populated by the API in a full implementation
   const [pendingInterviews, setPendingInterviews] = useState<any[]>([]);
   const [upcomingInterviews, setUpcomingInterviews] = useState<any[]>([]);
 
@@ -18,32 +22,33 @@ export default function StudentInterviewsPage() {
       setLoading(true);
       const res = await getJson<any[]>("/interviews");
       if (res.ok && res.body) {
-        // Mock filtering logic for demonstration
-        setPendingInterviews(res.body.filter(i => i.status === "scheduled"));
+        setPendingInterviews(res.body.filter((i: any) => i.status === "pending"));
+        setUpcomingInterviews(res.body.filter((i: any) => i.status === "accepted" || i.status === "scheduled"));
       } else {
-        // Fallback mock data if API is empty/fails
         setPendingInterviews([
           {
             id: "mock_1",
             companyName: "Acme Corp",
-            role: "Software Engineer Intern",
+            jobTitle: "Software Engineer Intern",
             date: "2026-05-22",
             time: "10:00 AM",
-            type: "Video",
-            interviewer: "Sarah Connor",
-            status: "Pending",
+            interviewType: "video" as const,
+            interviewerName: "Sarah Connor",
+            meetingLink: "https://meet.google.com/abc-defg-hij",
+            status: "pending" as const,
           }
         ]);
         setUpcomingInterviews([
           {
             id: "int_2",
             companyName: "TechGlobal",
-            role: "Frontend Developer",
+            jobTitle: "Frontend Developer",
             date: "2026-05-24",
             time: "02:00 PM",
-            type: "In-person",
-            interviewer: "John Smith",
-            status: "Scheduled",
+            interviewType: "in-person" as const,
+            interviewerName: "John Smith",
+            location: "123 Tech Street, Building A",
+            status: "accepted" as const,
           }
         ]);
       }
@@ -55,40 +60,89 @@ export default function StudentInterviewsPage() {
 
   const handleStatusUpdate = async (id: string, status: string) => {
     await patchJson(`/interviews/${id}/status`, { status });
-    alert(`Status updated to ${status}`);
+    if (status === "accepted") {
+      setPendingInterviews(pendingInterviews.filter(i => i.id !== id));
+      setUpcomingInterviews([...upcomingInterviews, pendingInterviews.find(i => i.id === id)!]);
+    } else if (status === "declined") {
+      setPendingInterviews(pendingInterviews.filter(i => i.id !== id));
+    }
   };
 
+  const handleRescheduleRequest = (interview: any) => {
+    setSelectedInterview(interview);
+    setRescheduleModal(true);
+  };
 
+  const submitRescheduleRequest = async () => {
+    if (!rescheduleReason.trim()) return;
+    await patchJson(`/interviews/${selectedInterview.id}/reschedule`, { reason: rescheduleReason });
+    setRescheduleModal(false);
+    setRescheduleReason("");
+    setSelectedInterview(null);
+    alert("Reschedule request sent successfully!");
+  };
 
-  // Mock data for timeline
-  const timelineEvents = [
-    { id: 1, title: "Application Submitted", date: "May 1", status: "completed" as const },
-    { id: 2, title: "Resume Screening", date: "May 10", status: "completed" as const },
-    { id: 3, title: "Round 1: Technical Interview", date: "May 24", status: "current" as const, description: "In-person interview at TechGlobal office." },
-    { id: 4, title: "HR Round", status: "upcoming" as const },
-    { id: 5, title: "Final Decision", status: "upcoming" as const },
+  const pastInterviews = [
+    {
+      id: "int_past1",
+      companyName: "InnovaTech",
+      jobTitle: "UI/UX Intern",
+      date: "2026-04-15",
+      time: "11:00 AM",
+      interviewType: "video" as const,
+      interviewerName: "Emily Chen",
+      status: "completed" as const,
+    },
+    {
+      id: "int_past2",
+      companyName: "DataCorp",
+      jobTitle: "Data Analyst Intern",
+      date: "2026-04-10",
+      time: "03:00 PM",
+      interviewType: "phone" as const,
+      interviewerName: "Michael Brown",
+      status: "completed" as const,
+    },
   ];
 
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--color-primary)', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+      </div>
+    );
+  }
+
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "var(--space-xl) 0" }}>
-      <div style={{ marginBottom: "var(--space-xl)" }}>
-        <h1 style={{ fontSize: "var(--font-size-2xl)", marginBottom: "var(--space-xs)" }}>My Interviews</h1>
-        <p style={{ color: "var(--color-muted)" }}>Manage your interview invitations and track your progress.</p>
+    <div className="animate-fade-in-up" style={{ maxWidth: 1200, margin: "0 auto", padding: "var(--space-2xl) var(--space-lg)" }}>
+      {/* Header */}
+      <div style={{ marginBottom: "var(--space-2xl)" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 999, background: "rgba(34,151,250,0.1)", color: "#2297FA", fontSize: "var(--font-size-xs)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "var(--space-sm)" }}>
+          <FiCalendar size={14} /> Interview Center
+        </div>
+        <h1 style={{ fontSize: "clamp(1.75rem, 3vw, 2.5rem)", fontWeight: 800, letterSpacing: "-0.03em", marginBottom: "var(--space-xs)" }}>
+          My Interviews
+        </h1>
+        <p style={{ color: "var(--color-muted)", fontSize: "var(--font-size-base)", fontWeight: 500 }}>
+          Manage your interview invitations and track your progress
+        </p>
       </div>
 
-      <div style={{ display: "flex", gap: "var(--space-md)", borderBottom: "1px solid var(--color-border)", marginBottom: "var(--space-xl)" }}>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "var(--space-sm)", borderBottom: "1px solid var(--color-border)", marginBottom: "var(--space-2xl)" }}>
         <button
           onClick={() => setActiveTab("invitations")}
           style={{
-            padding: "var(--space-sm) var(--space-lg)",
-            background: "transparent",
+            padding: "12px 24px",
+            background: activeTab === "invitations" ? "rgba(34,151,250,0.1)" : "transparent",
             border: "none",
-            borderBottom: activeTab === "invitations" ? "2px solid var(--color-primary)" : "2px solid transparent",
-            color: activeTab === "invitations" ? "var(--color-primary)" : "var(--color-muted)",
+            borderBottom: activeTab === "invitations" ? "2px solid #2297FA" : "2px solid transparent",
+            color: activeTab === "invitations" ? "#2297FA" : "var(--color-muted)",
             fontWeight: 600,
             cursor: "pointer",
-            fontSize: "var(--font-size-md)",
+            fontSize: "var(--font-size-sm)",
             transition: "all var(--transition-fast)",
+            borderRadius: "var(--radius) var(--radius) 0 0",
           }}
         >
           Invitations & Upcoming
@@ -96,80 +150,129 @@ export default function StudentInterviewsPage() {
         <button
           onClick={() => setActiveTab("history")}
           style={{
-            padding: "var(--space-sm) var(--space-lg)",
-            background: "transparent",
+            padding: "12px 24px",
+            background: activeTab === "history" ? "rgba(34,151,250,0.1)" : "transparent",
             border: "none",
-            borderBottom: activeTab === "history" ? "2px solid var(--color-primary)" : "2px solid transparent",
-            color: activeTab === "history" ? "var(--color-primary)" : "var(--color-muted)",
+            borderBottom: activeTab === "history" ? "2px solid #2297FA" : "2px solid transparent",
+            color: activeTab === "history" ? "#2297FA" : "var(--color-muted)",
             fontWeight: 600,
             cursor: "pointer",
-            fontSize: "var(--font-size-md)",
+            fontSize: "var(--font-size-sm)",
             transition: "all var(--transition-fast)",
+            borderRadius: "var(--radius) var(--radius) 0 0",
           }}
         >
-          Progress & History
+          History
         </button>
       </div>
 
       {activeTab === "invitations" && (
-        <div className="animate-fade-in-up">
-          <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-lg)" }}>Pending Invitations</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: "var(--space-lg)", marginBottom: "var(--space-2xl)" }}>
-            {pendingInterviews.map((int) => (
-              <InterviewCard
-                key={int.id}
-                {...int}
-                userRole="student"
-                onAccept={() => handleStatusUpdate(int.id, "scheduled")}
-                onDecline={() => handleStatusUpdate(int.id, "cancelled")}
-                onReschedule={() => handleStatusUpdate(int.id, "rescheduled")}
-              />
-            ))}
-            {pendingInterviews.length === 0 && (
-              <p style={{ color: "var(--color-muted)" }}>No pending invitations right now.</p>
-            )}
-          </div>
+        <div>
+          {/* Pending Invitations */}
+          {pendingInterviews.length > 0 && (
+            <>
+              <h2 style={{ fontSize: "var(--font-size-lg)", fontWeight: 700, marginBottom: "var(--space-lg)", display: "flex", alignItems: "center", gap: 8 }}>
+                <FiClock /> Pending Invitations
+              </h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: "var(--space-lg)", marginBottom: "var(--space-2xl)" }}>
+                {pendingInterviews.map((int) => (
+                  <InterviewCard
+                    key={int.id}
+                    {...int}
+                    showActions={true}
+                    onAccept={() => handleStatusUpdate(int.id, "accepted")}
+                    onDecline={() => handleStatusUpdate(int.id, "declined")}
+                    onReschedule={() => handleRescheduleRequest(int)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
 
-          <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-lg)" }}>Upcoming Interviews</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: "var(--space-lg)" }}>
-            {upcomingInterviews.map((int) => (
-              <InterviewCard
-                key={int.id}
-                {...int}
-                userRole="student"
-              />
-            ))}
-          </div>
+          {/* Upcoming Interviews */}
+          <h2 style={{ fontSize: "var(--font-size-lg)", fontWeight: 700, marginBottom: "var(--space-lg)", display: "flex", alignItems: "center", gap: 8 }}>
+            <FiCalendar /> Upcoming Interviews
+          </h2>
+          {upcomingInterviews.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: "var(--space-lg)" }}>
+              {upcomingInterviews.map((int) => (
+                <InterviewCard
+                  key={int.id}
+                  {...int}
+                  showActions={false}
+                />
+              ))}
+            </div>
+          ) : (
+            <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", padding: "var(--space-xl)", border: "1px solid var(--color-border)", textAlign: "center" }}>
+              <p style={{ color: "var(--color-muted)", fontSize: "var(--font-size-sm)" }}>No upcoming interviews scheduled</p>
+            </div>
+          )}
         </div>
       )}
 
       {activeTab === "history" && (
-        <div className="animate-fade-in-up" style={{ display: "grid", gridTemplateColumns: "1fr 350px", gap: "var(--space-2xl)" }}>
-          <div>
-            <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-lg)" }}>Active Applications Progress</h2>
-            <div style={{ background: "white", padding: "var(--space-xl)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-sm)" }}>
-              <h3 style={{ marginBottom: "var(--space-md)", fontSize: "var(--font-size-md)", color: "var(--color-primary)" }}>TechGlobal - Frontend Developer</h3>
-              <Timeline events={timelineEvents} />
-            </div>
-          </div>
-          
-          <div>
-            <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-lg)" }}>Past Interviews</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+        <div>
+          <h2 style={{ fontSize: "var(--font-size-lg)", fontWeight: 700, marginBottom: "var(--space-lg)", display: "flex", alignItems: "center", gap: 8 }}>
+            <FiCheckCircle /> Interview History
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: "var(--space-lg)" }}>
+            {pastInterviews.map((int) => (
               <InterviewCard
-                id="int_past1"
-                companyName="InnovaTech"
-                role="UI/UX Intern"
-                date="2026-04-15"
-                time="11:00 AM"
-                type="Video"
-                status="Completed"
-                userRole="student"
+                key={int.id}
+                {...int}
+                showActions={false}
               />
-            </div>
+            ))}
           </div>
         </div>
       )}
+
+      {/* Reschedule Request Modal */}
+      <Modal isOpen={rescheduleModal} onClose={() => setRescheduleModal(false)} title="Request Reschedule" size="md">
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
+          {selectedInterview && (
+            <div style={{ background: "var(--color-background)", padding: "var(--space-md)", borderRadius: "var(--radius)", marginBottom: "var(--space-sm)" }}>
+              <p style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 4 }}>{selectedInterview.jobTitle}</p>
+              <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-muted)" }}>{selectedInterview.companyName}</p>
+              <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-muted)", marginTop: 4 }}>
+                {selectedInterview.date} at {selectedInterview.time}
+              </p>
+            </div>
+          )}
+          
+          <div>
+            <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: 8 }}>
+              Reason for Reschedule
+            </label>
+            <textarea
+              value={rescheduleReason}
+              onChange={(e) => setRescheduleReason(e.target.value)}
+              placeholder="Please explain why you need to reschedule..."
+              rows={4}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                borderRadius: "var(--radius)",
+                border: "1px solid var(--color-border)",
+                background: "var(--color-background)",
+                fontSize: "var(--font-size-base)",
+                resize: "vertical",
+                fontFamily: "inherit",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: "var(--space-md)", justifyContent: "flex-end", paddingTop: "var(--space-md)" }}>
+            <Button variant="ghost" onClick={() => setRescheduleModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={submitRescheduleRequest} style={{ background: "#2297FA" }}>
+              <FiRefreshCw style={{ marginRight: 8 }} /> Send Request
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
