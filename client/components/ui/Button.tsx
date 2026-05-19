@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
 type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -26,6 +26,11 @@ const variantStyles: Record<Variant, React.CSSProperties> = {
     border: '1.5px solid var(--color-primary-20)',
   },
   ghost: {
+    background: 'transparent',
+    color: 'var(--color-foreground)',
+    border: '1.5px solid var(--color-border)',
+  },
+  outline: {
     background: 'transparent',
     color: 'var(--color-foreground)',
     border: '1.5px solid var(--color-border)',

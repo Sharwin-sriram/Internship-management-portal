@@ -159,16 +159,23 @@ function InterviewFeedbackInner() {
 
           <div style={{ borderTop: "1px solid var(--color-border)", margin: "var(--space-md) 0" }} />
 
-          <FormField label="Recommendation" id="recommendation">
-            <Select name="recommendation" value={recommendation} onChange={(e) => setRecommendation(e.target.value)} required>
-              <option value="Selected">Strong hire</option>
-              <option value="Hold">Neutral / hold</option>
-              <option value="Rejected">No hire</option>
+          <FormField label="Overall Recommendation" id="recommendation">
+            <Select name="recommendation" value={recommendation} onChange={(e: any) => setRecommendation(e.target.value)} required>
+              <option value="Selected">Strong Hire (Selected)</option>
+              <option value="Hold">Hold for Comparison</option>
+              <option value="Rejected">Do Not Hire (Rejected)</option>
             </Select>
           </FormField>
 
-          <FormField label="Comments" id="comments">
-            <Textarea name="comments" placeholder="Observations…" value={comments} onChange={(e) => setComments(e.target.value)} rows={6} required />
+          <FormField label="Detailed Comments & Observations" id="comments">
+            <Textarea 
+              name="comments" 
+              placeholder="Provide specific examples from the interview..." 
+              value={comments} 
+              onChange={(e: any) => setComments(e.target.value)} 
+              rows={6} 
+              required
+            />
           </FormField>
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-md)", marginTop: "var(--space-md)" }}>

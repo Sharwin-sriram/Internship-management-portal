@@ -56,6 +56,11 @@ type RecommendedInternship = {
   stipend: string;
 };
 
+const studentLinks = [
+  { label: 'Applications', icon: '📝', desc: 'Track your job applications', href: '/dashboard/student/applications' },
+  { label: 'Documents',    icon: '📁', desc: 'Manage your resumes and files', href: '/dashboard/student/documents' },
+  { label: 'Interviews',   icon: '📅', desc: 'View scheduled interviews', href: '/dashboard/student/interviews' },
+];
 type ProfileStudent = {
   college?: string;
   branch?: string;

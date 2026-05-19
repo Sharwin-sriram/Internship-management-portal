@@ -61,10 +61,18 @@ export async function postForm<T = unknown>(
   path: string,
   formData: FormData
 ): Promise<ApiResponse<T>> {
+  const headers: Record<string, string> = {};
+  if (typeof window !== 'undefined') {
+    const token = getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers,
       body: formData,
     });
 
