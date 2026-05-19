@@ -6,9 +6,6 @@ import { useRouter } from "next/navigation";
 import Button from "../../components/ui/Button";
 import {
   FiBriefcase,
-  FiCheckCircle,
-  FiClock,
-  FiStar,
   FiChevronRight,
   FiBell,
   FiMapPin,
@@ -158,7 +155,7 @@ const studentLinks: DashboardLink[] = [
     label: "Browse Internships",
     icon: "🔎",
     desc: "Explore internship opportunities",
-    href: "/apply",
+    href: "/explore",
   },
   {
     label: "My Documents",
@@ -330,37 +327,6 @@ export default function DashboardPage() {
     }
   };
 
-  const statCards = [
-    {
-      label: "Total Applications",
-      value: stats.totalApplications,
-      icon: <FiBriefcase size={24} />,
-      color: "#2297FA",
-      bg: "rgba(34,151,250,0.12)",
-    },
-    {
-      label: "Active Interviews",
-      value: stats.activeInterviews,
-      icon: <FiClock size={24} />,
-      color: "#8082D6",
-      bg: "rgba(128,130,214,0.12)",
-    },
-    {
-      label: "Offers Received",
-      value: stats.offersReceived,
-      icon: <FiCheckCircle size={24} />,
-      color: "#22c55e",
-      bg: "rgba(34,197,94,0.12)",
-    },
-    {
-      label: "Saved Internships",
-      value: stats.savedInternships,
-      icon: <FiStar size={24} />,
-      color: "#f59e0b",
-      bg: "rgba(245,158,11,0.12)",
-    },
-  ];
-
   return (
     <div
       className="animate-fade-in-up"
@@ -464,81 +430,107 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Stats Grid */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "var(--space-md)",
-          marginBottom: "var(--space-2xl)",
-        }}
-      >
-        {statCards.map((s, i) => (
+      {/* Quick Actions */}
+      {roleLinks[user.role]?.length ? (
+        <section
+          style={{
+            marginBottom: "var(--space-2xl)",
+          }}
+        >
           <div
-            key={i}
-            className={`delay-${(i + 1) * 100} animate-fade-in-up`}
             style={{
-              background: "var(--color-surface)",
-              borderRadius: "var(--radius-xl)",
-              padding: "var(--space-lg)",
-              border: "1px solid var(--color-border)",
               display: "flex",
               alignItems: "center",
+              justifyContent: "space-between",
               gap: "var(--space-md)",
-              transition:
-                "transform var(--transition-base), box-shadow var(--transition-base)",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-4px)";
-              e.currentTarget.style.boxShadow = "var(--shadow-md)";
-              e.currentTarget.style.borderColor = "var(--color-primary-20)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "none";
-              e.currentTarget.style.borderColor = "var(--color-border)";
+              marginBottom: "var(--space-md)",
             }}
           >
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: "var(--radius-lg)",
-                background: s.bg,
-                color: s.color,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              {s.icon}
-            </div>
-            <div>
-              <p
-                style={{
-                  fontSize: "var(--font-size-sm)",
-                  color: "var(--color-muted)",
-                  fontWeight: 600,
-                  marginBottom: 4,
-                }}
-              >
-                {s.label}
-              </p>
-              <h3
-                style={{
-                  fontSize: "var(--font-size-2xl)",
-                  fontWeight: 800,
-                  lineHeight: 1,
-                }}
-              >
-                {s.value}
-              </h3>
-            </div>
+            <h2 style={{ fontSize: "var(--font-size-lg)", fontWeight: 700 }}>
+              Quick Actions
+            </h2>
           </div>
-        ))}
-      </section>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: "var(--space-md)",
+            }}
+          >
+            {roleLinks[user.role].map((link) => (
+              <button
+                key={link.href}
+                type="button"
+                onClick={() => router.push(link.href)}
+                style={{
+                  background: "var(--color-surface)",
+                  borderRadius: "var(--radius-xl)",
+                  border: "1px solid var(--color-border)",
+                  padding: "var(--space-lg)",
+                  textAlign: "left",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: "var(--space-md)",
+                  cursor: "pointer",
+                  transition:
+                    "transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-4px)";
+                  e.currentTarget.style.boxShadow = "var(--shadow-md)";
+                  e.currentTarget.style.borderColor = "var(--color-primary-20)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                  e.currentTarget.style.borderColor = "var(--color-border)";
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "var(--radius-lg)",
+                      background: "var(--color-primary-10)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "1.4rem",
+                      marginBottom: "var(--space-sm)",
+                    }}
+                  >
+                    {link.icon}
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: "var(--font-size-base)",
+                      fontWeight: 700,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {link.label}
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: "var(--font-size-sm)",
+                      color: "var(--color-muted)",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {link.desc}
+                  </p>
+                </div>
+                <FiChevronRight
+                  size={18}
+                  style={{ color: "var(--color-muted)", flexShrink: 0 }}
+                />
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Main Content Layout */}
       <div
