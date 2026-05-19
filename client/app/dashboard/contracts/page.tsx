@@ -59,6 +59,10 @@ export default function ContractsPage() {
               <h3 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-md)' }}>Contract Configuration</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                 <div>
+                  <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 600, marginBottom: 4 }}>Company Name</label>
+                  <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
+                </div>
+                <div>
                   <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 600, marginBottom: 4 }}>Student Name</label>
                   <input type="text" value={studentName} onChange={e => setStudentName(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
                 </div>
@@ -112,7 +116,7 @@ export default function ContractsPage() {
                 
                 {/* User Signature */}
                 <div>
-                  <p style={{ fontWeight: 'bold', marginBottom: 'var(--space-sm)' }}>Your Signature ({user?.name || 'Signer'}):</p>
+                  <p style={{ fontWeight: 'bold', marginBottom: 'var(--space-sm)' }}>Your Signature ({isStudent ? studentName : companyName}):</p>
                   <div style={{ 
                     border: '2px dashed var(--color-border)', 
                     borderRadius: 'var(--radius-sm)', 
