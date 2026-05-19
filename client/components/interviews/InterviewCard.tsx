@@ -3,7 +3,7 @@
 import React from 'react';
 import { FiCalendar, FiClock, FiMapPin, FiVideo, FiPhone, FiUser } from 'react-icons/fi';
 
-interface InterviewCardProps {
+export interface InterviewCardProps {
   companyLogo?: string;
   companyName: string;
   jobTitle: string;

@@ -153,6 +153,7 @@ export default function Header() {
                 gap: "var(--space-sm)",
               }}
             >
+              <NotificationBell />
               <Link
                 href="/profile"
                 style={{ textDecoration: "none" }}
