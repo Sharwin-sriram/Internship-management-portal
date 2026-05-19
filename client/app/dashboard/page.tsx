@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Button from '../../components/ui/Button';
 import { FiBriefcase, FiCheckCircle, FiClock, FiStar, FiChevronRight, FiBell, FiMapPin, FiCalendar } from 'react-icons/fi';
+import { getJson } from '../../lib/api';
 
 const roleMeta: Record<string, { label: string; color: string; bg: string }> = {
   student:     { label: 'Student',     color: '#2297FA', bg: 'rgba(34,151,250,0.1)' },
@@ -13,46 +14,89 @@ const roleMeta: Record<string, { label: string; color: string; bg: string }> = {
   coordinator: { label: 'Coordinator', color: '#94AEFE', bg: 'rgba(148,174,254,0.1)' },
 };
 
-const stats = [
-  { label: 'Total Applications', value: '12', icon: <FiBriefcase size={24} />, color: '#2297FA', bg: 'rgba(34,151,250,0.12)' },
-  { label: 'Active Interviews', value: '3', icon: <FiClock size={24} />, color: '#8082D6', bg: 'rgba(128,130,214,0.12)' },
-  { label: 'Offers Received', value: '1', icon: <FiCheckCircle size={24} />, color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
-  { label: 'Saved Internships', value: '8', icon: <FiStar size={24} />, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-];
+type AppStat = {
+  totalApplications: number;
+  activeInterviews: number;
+  offersReceived: number;
+  savedInternships: number;
+};
 
-const recentApplications = [
-  { id: 1, role: 'Frontend Developer Intern', company: 'TechNova', status: 'In Review', date: '2 days ago', logo: 'T' },
-  { id: 2, role: 'UX Research Intern', company: 'DesignCo', status: 'Interview', date: '1 week ago', logo: 'D' },
-  { id: 3, role: 'Software Engineering Intern', company: 'CloudBase', status: 'Pending', date: '2 weeks ago', logo: 'C' },
-  { id: 4, role: 'Data Science Intern', company: 'DataMind', status: 'Rejected', date: '1 month ago', logo: 'DM' },
-];
+type RecentApplication = {
+  id: string;
+  role: string;
+  company: string;
+  status: string;
+  date: string;
+  logo: string;
+};
 
-const recommendedInternships = [
-  { id: 101, role: 'React Developer', company: 'InnovateX', location: 'Remote', stipend: '$1000/mo' },
-  { id: 102, role: 'Full Stack Intern', company: 'BuildFast', location: 'New York, NY', stipend: '$1500/mo' },
-  { id: 103, role: 'UI/UX Designer', company: 'CreativeStudio', location: 'San Francisco, CA', stipend: '$1200/mo' },
-];
+type RecommendedInternship = {
+  id: string;
+  role: string;
+  company: string;
+  location: string;
+  stipend: string;
+};
 
 export default function DashboardPage() {
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+
+  const [stats, setStats] = useState<AppStat>({
+    totalApplications: 0,
+    activeInterviews: 0,
+    offersReceived: 0,
+    savedInternships: 0,
+  });
+  const [recentApplications, setRecentApplications] = useState<RecentApplication[]>([]);
+  const [recommendedInternships, setRecommendedInternships] = useState<RecommendedInternship[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!isLoading && !user) router.push('/login');
-  }, [user, isLoading, router]);
+    if (!authLoading && !user) router.push('/login');
+  }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (!isLoading && user?.role === 'company') {
+    if (!authLoading && user?.role === 'company') {
       router.push('/dashboard/company');
     }
-  }, [user, isLoading, router]);
+  }, [user, authLoading, router]);
 
-  if (isLoading || !user || user.role === 'company' || !mounted) {
+  useEffect(() => {
+    if (user && user.role !== 'company') {
+      const fetchDashboardData = async () => {
+        try {
+          const res = await getJson<{
+            success: boolean;
+            data: {
+              stats: AppStat;
+              recentApplications: RecentApplication[];
+              recommendedInternships: RecommendedInternship[];
+            };
+          }>('/student-dashboard');
+
+          if (res.ok && res.body?.success) {
+            setStats(res.body.data.stats);
+            setRecentApplications(res.body.data.recentApplications);
+            setRecommendedInternships(res.body.data.recommendedInternships);
+          }
+        } catch (error) {
+          console.error("Error fetching dashboard data:", error);
+        } finally {
+          setLoadingData(false);
+        }
+      };
+
+      fetchDashboardData();
+    }
+  }, [user]);
+
+  if (authLoading || loadingData || !user || user.role === 'company' || !mounted) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
         <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--color-primary)', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
@@ -68,9 +112,17 @@ export default function DashboardPage() {
       case 'In Review': return { color: '#2297FA', bg: 'rgba(34,151,250,0.1)' };
       case 'Pending': return { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' };
       case 'Rejected': return { color: '#ef4444', bg: 'rgba(239,68,68,0.1)' };
+      case 'Offer': return { color: '#22c55e', bg: 'rgba(34,197,94,0.1)' };
       default: return { color: 'var(--color-muted)', bg: 'var(--color-border)' };
     }
   };
+
+  const statCards = [
+    { label: 'Total Applications', value: stats.totalApplications, icon: <FiBriefcase size={24} />, color: '#2297FA', bg: 'rgba(34,151,250,0.12)' },
+    { label: 'Active Interviews', value: stats.activeInterviews, icon: <FiClock size={24} />, color: '#8082D6', bg: 'rgba(128,130,214,0.12)' },
+    { label: 'Offers Received', value: stats.offersReceived, icon: <FiCheckCircle size={24} />, color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
+    { label: 'Saved Internships', value: stats.savedInternships, icon: <FiStar size={24} />, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+  ];
 
   return (
     <div className="animate-fade-in-up" style={{ maxWidth: 'var(--max-width)', margin: '0 auto', padding: 'var(--space-xl) var(--space-lg)' }}>
@@ -99,7 +151,7 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-md)', marginBottom: 'var(--space-2xl)' }}>
-        {stats.map((s, i) => (
+        {statCards.map((s, i) => (
           <div
             key={i}
             className={`delay-${(i + 1) * 100} animate-fade-in-up`}
@@ -128,7 +180,7 @@ export default function DashboardPage() {
             <Button variant="ghost" size="sm" style={{ fontSize: 'var(--font-size-sm)' }}>View All <FiChevronRight /></Button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {recentApplications.map((app, index) => {
+            {recentApplications.length > 0 ? recentApplications.map((app, index) => {
               const statusStyle = getStatusColor(app.status);
               return (
                 <div key={app.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-lg)', borderBottom: index < recentApplications.length - 1 ? '1px solid var(--color-border)' : 'none', transition: 'background var(--transition-fast)', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--color-background)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -150,7 +202,11 @@ export default function DashboardPage() {
                   </div>
                 </div>
               );
-            })}
+            }) : (
+              <div style={{ padding: 'var(--space-xl)', textAlign: 'center', color: 'var(--color-muted)' }}>
+                You haven&apos;t applied to any internships yet.
+              </div>
+            )}
           </div>
         </section>
 
@@ -163,7 +219,7 @@ export default function DashboardPage() {
               <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>Recommended for You</h2>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-              {recommendedInternships.map(internship => (
+              {recommendedInternships.length > 0 ? recommendedInternships.map(internship => (
                 <div key={internship.id} style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-md)', border: '1px solid var(--color-border)', transition: 'all var(--transition-base)', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.transform='translateX(4px)'; e.currentTarget.style.borderColor='var(--color-primary)'; }} onMouseLeave={e => { e.currentTarget.style.transform='translateX(0)'; e.currentTarget.style.borderColor='var(--color-border)'; }}>
                   <h4 style={{ fontWeight: 700, fontSize: 'var(--font-size-base)', marginBottom: 4 }}>{internship.role}</h4>
                   <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-muted)', marginBottom: 8 }}>{internship.company}</div>
@@ -172,7 +228,11 @@ export default function DashboardPage() {
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><FiCalendar /> {internship.stipend}</span>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-muted)', textAlign: 'center', padding: 'var(--space-md) 0' }}>
+                  No recommendations available at the moment.
+                </div>
+              )}
             </div>
             <Button variant="secondary" style={{ width: '100%', marginTop: 'var(--space-md)' }}>Explore More</Button>
           </div>
@@ -186,7 +246,7 @@ export default function DashboardPage() {
             <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-muted)', marginBottom: 'var(--space-lg)' }}>
               Increase your chances of getting hired by adding more details to your resume and portfolio.
             </p>
-            <Button variant="primary" style={{ width: '100%' }}>Edit Profile</Button>
+            <Button variant="primary" style={{ width: '100%' }} onClick={() => router.push('/profile')}>Edit Profile</Button>
           </div>
         </section>
 

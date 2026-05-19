@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../../context/AuthContext';
 import { getJson, postAuthJson } from '../../../../lib/api';
+import Button from '../../../../components/ui/Button';
 
 interface TalentProfile {
   id: string;
@@ -103,9 +104,9 @@ export default function CompanyTalentPage() {
             onChange={e => setFilters(prev => ({ ...prev, graduationYear: e.target.value }))}
             style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0' }}
           />
-          <button type="submit" style={{ padding: '12px', borderRadius: 12, border: 'none', background: '#0f172a', color: '#fff', fontWeight: 700 }}>
-            {loading ? 'Searching...' : 'Search'}
-          </button>
+          <Button variant="primary" type="submit" loading={loading} style={{ background: '#0f172a', boxShadow: '0 4px 14px rgba(15,23,42,0.25)' }}>
+            Search
+          </Button>
         </form>
       </div>
 
@@ -135,13 +136,13 @@ export default function CompanyTalentPage() {
                   <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 700 }}>Pending approval</span>
                 )}
                 {student.contact_status === 'locked' && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => handleUnlockRequest(student.id)}
-                    style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #cbd5f5', background: '#eef2ff', color: '#3730a3', fontWeight: 700 }}
                   >
                     Request contact
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

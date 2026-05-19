@@ -37,6 +37,14 @@ interface DashboardMetrics {
   offerConversionRate: number;
   pendingActions: number;
   approvalStatus: string;
+  recommendedInterns?: {
+    id: string;
+    name: string;
+    branch: string;
+    cgpa: number;
+    skills: string[];
+    graduationYear: number;
+  }[];
 }
 
 interface AnalyticsData {
@@ -165,7 +173,7 @@ export default function CompanyDashboardPage() {
   }
 
   return (
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '1.5rem 0 0', height: 'calc(100vh - 120px)', overflow: 'hidden' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '1.5rem 0 2rem' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}>
           <div>
@@ -285,6 +293,76 @@ export default function CompanyDashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Recommended Interns */}
+        {metrics?.recommendedInterns && metrics.recommendedInterns.length > 0 && (
+          <div style={{ marginBottom: '3rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Recommended Interns</h2>
+              <Link href="/dashboard/company/talent" style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-primary)', textDecoration: 'none' }}>
+                Search Talent Pool →
+              </Link>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.25rem' }}>
+              {metrics.recommendedInterns.map((intern) => (
+                <div 
+                  key={intern.id} 
+                  style={{ 
+                    background: '#fff', 
+                    borderRadius: 18, 
+                    padding: 20, 
+                    border: '1px solid rgba(148,174,254,0.25)', 
+                    boxShadow: '0 8px 24px rgba(15,23,42,0.04)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 12px 30px rgba(15,23,42,0.08)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(15,23,42,0.04)';
+                  }}
+                  onClick={() => router.push('/dashboard/company/talent')}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                      <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--color-primary-10)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '1.1rem' }}>
+                        {intern.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '1rem', color: '#0f172a' }}>{intern.name}</strong>
+                        <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{intern.branch} · CGPA {intern.cgpa}</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                      {intern.skills.slice(0, 3).map((skill: string) => (
+                        <span key={skill} style={{ padding: '4px 8px', borderRadius: 999, background: '#f1f5f9', color: '#475569', fontSize: '0.72rem', fontWeight: 600 }}>
+                          {skill}
+                        </span>
+                      ))}
+                      {intern.skills.length > 3 && (
+                        <span style={{ padding: '4px 8px', borderRadius: 999, background: '#f1f5f9', color: '#94a3b8', fontSize: '0.72rem', fontWeight: 600 }}>
+                          +{intern.skills.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, fontSize: '0.8rem', color: '#94a3b8' }}>
+                    <span>Graduating: {intern.graduationYear}</span>
+                    <span style={{ color: 'var(--color-primary)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      Unlock Profile
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
   );

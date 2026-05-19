@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../../context/AuthContext';
 import { getJson, postAuthJson, deleteJson } from '../../../../lib/api';
+import Button from '../../../../components/ui/Button';
 
 interface Recruiter {
   _id?: string;
@@ -101,13 +102,13 @@ export default function CompanyRecruitersPage() {
                     <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.8rem' }}>{rec.phone}</p>
                   )}
                 </div>
-                <button
-                  type="button"
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={() => handleRemove(rec._id)}
-                  style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#b91c1c', fontWeight: 700 }}
                 >
                   Remove
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -143,13 +144,14 @@ export default function CompanyRecruitersPage() {
               onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))}
               style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0' }}
             />
-            <button
+            <Button
+              variant="primary"
               type="submit"
-              disabled={saving}
-              style={{ padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #2297FA 0%, #8082D6 100%)', color: '#fff', fontWeight: 700 }}
+              loading={saving}
+              fullWidth
             >
-              {saving ? 'Saving...' : 'Add recruiter'}
-            </button>
+              Add recruiter
+            </Button>
           </form>
 
           {message && (
