@@ -354,6 +354,41 @@ export const getCompanyDashboard = async (req, res) => {
       ? Number(((offers / totalApplications) * 100).toFixed(1))
       : 0;
 
+    // Get recommended interns based on company's posted internships
+    const internships = await Internship.find({ company: company._id });
+    const companySkills = internships.reduce((acc, intern) => {
+      if (intern.skills_required) {
+        intern.skills_required.forEach(s => acc.add(s.toLowerCase()));
+      }
+      return acc;
+    }, new Set());
+
+    let studentQuery = { placement_eligible: true };
+    if (companySkills.size > 0) {
+      studentQuery.skills = { $in: Array.from(companySkills) };
+    }
+
+    let recommended = await Student.find(studentQuery)
+      .populate('user', 'name email')
+      .sort({ cgpa: -1 })
+      .limit(4);
+
+    if (recommended.length === 0) {
+      recommended = await Student.find({ placement_eligible: true })
+        .populate('user', 'name email')
+        .sort({ cgpa: -1 })
+        .limit(4);
+    }
+
+    const recommendedInterns = recommended.map(student => ({
+      id: student._id,
+      name: student.user?.name || 'Student',
+      branch: student.branch,
+      cgpa: student.cgpa,
+      skills: student.skills || [],
+      graduationYear: student.graduation_year
+    }));
+
     res.status(200).json({
       success: true,
       data: {
@@ -363,6 +398,7 @@ export const getCompanyDashboard = async (req, res) => {
         offerConversionRate,
         pendingActions: pendingApplications + draftPostings,
         approvalStatus: company.approval_status,
+        recommendedInterns,
       },
     });
   } catch (error) {
