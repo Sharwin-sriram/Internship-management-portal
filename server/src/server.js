@@ -13,6 +13,7 @@ import offerLetterRoutes from "./routes/offerLetterRoutes.js";
 import contractRoutes from "./routes/contractRoutes.js";
 import exportRoutes from "./routes/exportRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
+import jobApplicationRoutes from "./routes/jobApplicationRoutes.js";
 import { startTokenCleanup } from "./utils/scheduler.js";
 import emailService from "./services/emailService.js";
 import logger from "./utils/logger.js";
@@ -31,7 +32,10 @@ const PORT = envConfig.PORT || process.env.PORT;
 connectDB();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:3001"],
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -55,6 +59,7 @@ app.use("/api/offer-letters", offerLetterRoutes);
 app.use("/api/contracts", contractRoutes);
 app.use("/api/exports", exportRoutes);
 app.use("/api/interviews", interviewRoutes);
+app.use("/api/job-applications", jobApplicationRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
