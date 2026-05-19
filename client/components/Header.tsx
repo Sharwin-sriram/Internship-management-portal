@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import Button from "./ui/Button";
+import NotificationBell from "./NotificationBell";
 
 export default function Header() {
   const pathname = usePathname();

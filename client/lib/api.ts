@@ -53,3 +53,6 @@ export const putJson = <T = unknown>(path: string, data: unknown) =>
 
 export const deleteJson = <T = unknown>(path: string) =>
   request<T>('DELETE', path, undefined, true);
+
+export const patchJson = <T = unknown>(path: string, data: unknown) =>
+  request<T>('PATCH', path, data, true);

@@ -2,6 +2,8 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
@@ -9,10 +11,19 @@ import passwordResetRoutes from "./routes/passwordReset.routes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import rbacRoutes from "./routes/accessControlRoutes.js";
 import studentDashboardRoutes from "./routes/studentDashboardRoutes.js";
+import documentRoutes from "./routes/documentRoutes.js";
+import offerLetterRoutes from "./routes/offerLetterRoutes.js";
+import contractRoutes from "./routes/contractRoutes.js";
+import exportRoutes from "./routes/exportRoutes.js";
+import interviewRoutes from "./routes/interviewRoutes.js";
+import jobApplicationRoutes from "./routes/jobApplicationRoutes.js";
 import { startTokenCleanup } from "./utils/scheduler.js";
 import emailService from "./services/emailService.js";
 import logger from "./utils/logger.js";
 import envConfig from "./config/env.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenv.config();
@@ -27,7 +38,17 @@ connectDB();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:3001"],
+  credentials: true,
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Serve static files from uploads directory
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/exports", express.static(path.join(__dirname, "../exports")));
 
 // Debug middleware
 app.use((req, res, next) => {
@@ -42,6 +63,12 @@ app.use("/api/password-reset", passwordResetRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/rbac", rbacRoutes);
 app.use("/api/student-dashboard", studentDashboardRoutes);
+app.use("/api/documents", documentRoutes);
+app.use("/api/offer-letters", offerLetterRoutes);
+app.use("/api/contracts", contractRoutes);
+app.use("/api/exports", exportRoutes);
+app.use("/api/interviews", interviewRoutes);
+app.use("/api/job-applications", jobApplicationRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -67,6 +94,11 @@ app.get("/", (req, res) => {
         request: "POST /api/password-reset/request",
         validate: "POST /api/password-reset/validate",
         reset: "POST /api/password-reset/reset",
+      },
+      documents: {
+        upload: "POST /api/documents/upload",
+        list: "GET /api/documents",
+        delete: "DELETE /api/documents/:filename",
       },
     },
     documentation: "See POSTMAN_TESTING_GUIDE.md for API documentation",
