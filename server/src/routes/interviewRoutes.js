@@ -1,28 +1,122 @@
 import express from "express";
 import {
-  createInterview,
+  scheduleInterview,
   getInterviews,
+  getInterviewById,
   updateInterviewStatus,
+  acceptInterview,
+  declineInterview,
+  requestReschedule,
+  advanceRound,
+  getRoundHistory,
   submitFeedback,
+  getFeedback,
+  releaseFeedback,
+  syncCalendar,
 } from "../controllers/interviewController.js";
 import { protect, authorize } from "../middlewares/auth.js";
+import { asyncHandler } from "../middlewares/asyncHandler.js";
+import {
+  scheduleInterviewRules,
+  interviewIdParam,
+  rescheduleRules,
+  statusUpdateRules,
+  feedbackRules,
+  advanceRoundRules,
+  handleValidationErrors,
+} from "../middlewares/interviewValidation.middleware.js";
 
 const router = express.Router();
 
-// Apply auth middleware to all interview routes
 router.use(protect);
 
 router
   .route("/")
-  .get(getInterviews)
-  .post(authorize("company", "coordinator", "admin"), createInterview);
+  .get(asyncHandler(getInterviews))
+  .post(
+    authorize("company", "coordinator", "admin"),
+    scheduleInterviewRules,
+    handleValidationErrors,
+    asyncHandler(scheduleInterview),
+  );
+
+router.get(
+  "/application/:applicationId/rounds",
+  authorize("company", "coordinator", "admin", "student"),
+  asyncHandler(getRoundHistory),
+);
 
 router
-  .route("/:id/status")
-  .patch(updateInterviewStatus);
+  .route("/:id")
+  .get(interviewIdParam, handleValidationErrors, asyncHandler(getInterviewById));
+
+router.patch(
+  "/:id/status",
+  statusUpdateRules,
+  handleValidationErrors,
+  asyncHandler(updateInterviewStatus),
+);
+
+router.post(
+  "/:id/accept",
+  authorize("student"),
+  interviewIdParam,
+  handleValidationErrors,
+  asyncHandler(acceptInterview),
+);
+
+router.post(
+  "/:id/decline",
+  authorize("student"),
+  interviewIdParam,
+  handleValidationErrors,
+  asyncHandler(declineInterview),
+);
+
+router.patch(
+  "/:id/reschedule",
+  authorize("student"),
+  rescheduleRules,
+  handleValidationErrors,
+  asyncHandler(requestReschedule),
+);
+
+router.post(
+  "/:id/advance-round",
+  authorize("company", "coordinator", "admin"),
+  advanceRoundRules,
+  handleValidationErrors,
+  asyncHandler(advanceRound),
+);
 
 router
   .route("/:id/feedback")
-  .post(authorize("interviewer", "company", "coordinator", "admin"), submitFeedback);
+  .get(
+    interviewIdParam,
+    handleValidationErrors,
+    asyncHandler(getFeedback),
+  )
+  .post(
+    authorize("interviewer", "company", "coordinator", "admin"),
+    feedbackRules,
+    handleValidationErrors,
+    asyncHandler(submitFeedback),
+  );
+
+router.patch(
+  "/:id/feedback/release",
+  authorize("coordinator", "admin"),
+  interviewIdParam,
+  handleValidationErrors,
+  asyncHandler(releaseFeedback),
+);
+
+router.post(
+  "/:id/calendar/sync",
+  authorize("company", "coordinator", "admin"),
+  interviewIdParam,
+  handleValidationErrors,
+  asyncHandler(syncCalendar),
+);
 
 export default router;

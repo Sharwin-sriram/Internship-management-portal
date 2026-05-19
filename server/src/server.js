@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -16,8 +17,13 @@ import offerLetterRoutes from "./routes/offerLetterRoutes.js";
 import contractRoutes from "./routes/contractRoutes.js";
 import exportRoutes from "./routes/exportRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 import jobApplicationRoutes from "./routes/jobApplicationRoutes.js";
-import { startTokenCleanup } from "./utils/scheduler.js";
+import {
+  startTokenCleanup,
+  startInterviewReminderScheduler,
+} from "./utils/scheduler.js";
+import { initSocket } from "./services/socketService.js";
 import emailService from "./services/emailService.js";
 import logger from "./utils/logger.js";
 import envConfig from "./config/env.js";
@@ -68,6 +74,7 @@ app.use("/api/offer-letters", offerLetterRoutes);
 app.use("/api/contracts", contractRoutes);
 app.use("/api/exports", exportRoutes);
 app.use("/api/interviews", interviewRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/job-applications", jobApplicationRoutes);
 
 // Root endpoint
@@ -143,19 +150,25 @@ app.use((err, req, res, next) => {
   });
 });
 
+// HTTP server (required for Socket.IO)
+const httpServer = http.createServer(app);
+
 // Start server
-const server = app.listen(PORT, async () => {
+httpServer.listen(PORT, async () => {
   console.log(`http://localhost:${PORT}`);
   console.log(
     `[INFO] ${new Date().toISOString()}: Server running in ${envConfig.NODE_ENV || "development"} mode on port ${PORT}`,
   );
 
-  // Verify email service connection
+  await initSocket(httpServer);
+
   await emailService.verifyConnection();
 
-  // Start background cleanup scheduler
   startTokenCleanup();
+  startInterviewReminderScheduler();
 });
+
+const server = httpServer;
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {

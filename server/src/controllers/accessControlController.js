@@ -1,4 +1,4 @@
-import User from "../models/User.js";
+import User from "../models/user.js";
 
 // @desc    Get all users (filtered by role optionally)
 // @route   GET /api/rbac/users
@@ -30,7 +30,7 @@ export const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
     
-    if (!["admin", "coordinator", "student", "company"].includes(role)) {
+    if (!["admin", "coordinator", "student", "company", "interviewer"].includes(role)) {
       return res.status(400).json({
         success: false,
         message: "Invalid role provided."

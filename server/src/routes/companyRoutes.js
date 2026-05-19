@@ -11,6 +11,7 @@ import {
   updateCompanyApproval,
   getCompanyDashboard,
   getCompanyAnalytics,
+  getMyShortlistedApplications,
   getRecruiters,
   addRecruiter,
   removeRecruiter,
@@ -35,6 +36,7 @@ router.get('/me', protect, authorize('company'), getMyCompany);
 router.put('/me', protect, authorize('company'), updateMyCompany);
 router.get('/me/dashboard', protect, authorize('company'), getCompanyDashboard);
 router.get('/me/analytics', protect, authorize('company'), getCompanyAnalytics);
+router.get('/me/shortlisted-applications', protect, authorize('company'), getMyShortlistedApplications);
 
 router.get('/me/recruiters', protect, authorize('company'), getRecruiters);
 router.post('/me/recruiters', protect, authorize('company'), addRecruiter);

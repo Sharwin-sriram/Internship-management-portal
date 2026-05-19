@@ -158,7 +158,17 @@ export default function LoginPage() {
       }
       setAttempts(0);
       setLocked(false);
-      router.push('/dashboard');
+      if (typeof window !== 'undefined') {
+        const sp = new URLSearchParams(window.location.search);
+        const redirect = sp.get('redirect');
+        const safe =
+          redirect && redirect.startsWith('/') && !redirect.startsWith('//')
+            ? redirect
+            : '/dashboard';
+        router.push(safe);
+      } else {
+        router.push('/dashboard');
+      }
     }
   }
 

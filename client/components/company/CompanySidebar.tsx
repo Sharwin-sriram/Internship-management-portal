@@ -5,11 +5,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const items = [
-  { href: '/dashboard/company', label: 'Overview' },
+  { href: '/dashboard/company', label: 'Overview', exact: true },
+  { href: '/dashboard/company/interviews/schedule', label: 'Schedule Interviews' },
+  { href: '/dashboard/company/calendar', label: 'Interview Calendar' },
   { href: '/dashboard/company/recruiters', label: 'Recruiting Team' },
   { href: '/dashboard/company/talent', label: 'Talent Search' },
   { href: '/dashboard/company/analytics', label: 'Analytics' },
+  { href: '/dashboard/company/offer-letters', label: 'Offer Letters' },
 ];
+
+function isNavActive(pathname: string, href: string, exact?: boolean) {
+  if (exact) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export default function CompanySidebar() {
   const pathname = usePathname();
@@ -21,7 +29,7 @@ export default function CompanySidebar() {
           <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: '#94a3b8', marginBottom: 12, fontWeight: 700 }}>Company</p>
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 6 }} aria-label="Company navigation">
             {items.map((item) => {
-              const active = pathname === item.href;
+              const active = isNavActive(pathname, item.href, item.exact);
               return (
                 <Link
                   key={item.href}

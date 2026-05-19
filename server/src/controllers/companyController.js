@@ -1,5 +1,5 @@
 import Company from '../models/Company.js';
-import User from '../models/User.js';
+import User from '../models/user.js';
 import Internship from '../models/Internship.js';
 import Application from '../models/Application.js';
 import Student from '../models/Student.js';
@@ -403,6 +403,43 @@ export const getCompanyDashboard = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error while loading dashboard.' });
+  }
+};
+
+// @desc    Shortlisted applications for scheduling interviews
+// @route   GET /api/companies/me/shortlisted-applications
+// @access  Company
+export const getMyShortlistedApplications = async (req, res) => {
+  try {
+    const company = await getCompanyForUser(req.user._id);
+    if (!company) {
+      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+    }
+
+    const internshipIds = await Internship.find({ company: company._id }).distinct('_id');
+    const applications = await Application.find({
+      internship: { $in: internshipIds },
+      status: { $in: ['shortlisted', 'interviewing'] },
+    })
+      .populate({
+        path: 'student',
+        populate: { path: 'user', select: 'name email' },
+      })
+      .populate('internship', 'title')
+      .sort({ last_updated: -1 })
+      .limit(100);
+
+    const data = applications.map((app) => ({
+      id: app._id,
+      studentName: app.student?.user?.name || 'Student',
+      studentEmail: app.student?.user?.email || '',
+      roleTitle: app.internship?.title || 'Internship',
+      status: app.status,
+    }));
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error while loading applications.' });
   }
 };
 
