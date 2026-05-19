@@ -104,7 +104,7 @@ export const login = async (req, res) => {
 
 export const register = async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, role } = req.body;
 
     if (!email || !password || !name) {
       return res.status(400).json({
@@ -122,10 +122,14 @@ export const register = async (req, res) => {
       });
     }
 
+    // Only allow public registration for students and companies
+    const validRole = (role === "company" || role === "student") ? role : "student";
+
     const user = await User.create({
       name,
       email,
       password,
+      role: validRole,
     });
 
     await sendTokenResponse(user, 201, res);

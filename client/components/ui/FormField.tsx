@@ -121,3 +121,43 @@ export function Select({ hasError, style, children, ...rest }: SelectProps) {
     </select>
   );
 }
+
+interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  hasError?: boolean;
+}
+
+export function Textarea({ hasError, style, ...rest }: TextareaProps) {
+  return (
+    <textarea
+      {...rest}
+      style={{
+        width: '100%',
+        padding: '10px 14px',
+        borderRadius: 'var(--radius-sm)',
+        border: `1.5px solid ${hasError ? 'var(--color-error)' : 'var(--color-border)'}`,
+        fontSize: 'var(--font-size-base)',
+        color: 'var(--color-foreground)',
+        background: 'var(--color-surface)',
+        outline: 'none',
+        resize: 'vertical',
+        minHeight: '80px',
+        transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
+        fontFamily: 'var(--font-sans)',
+        boxSizing: 'border-box',
+        ...style,
+      }}
+      onFocus={(e) => {
+        e.currentTarget.style.borderColor = 'var(--color-primary)';
+        e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-primary-10)';
+        rest.onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.borderColor = hasError
+          ? 'var(--color-error)'
+          : 'var(--color-border)';
+        e.currentTarget.style.boxShadow = 'none';
+        rest.onBlur?.(e);
+      }}
+    />
+  );
+}
