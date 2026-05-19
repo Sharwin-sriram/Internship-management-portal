@@ -153,44 +153,53 @@ export default function Header() {
                 gap: "var(--space-sm)",
               }}
             >
-              <NotificationBell />
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "4px 12px 4px 4px",
-                  borderRadius: 999,
-                  background: "var(--color-primary-10)",
-                  border: "1px solid var(--color-primary-20)",
-                }}
+              <Link
+                href="/profile"
+                style={{ textDecoration: "none" }}
               >
                 <div
                   style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    background: "var(--gradient-brand)",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontSize: "var(--font-size-xs)",
-                    fontWeight: 700,
+                    gap: "8px",
+                    padding: "4px 12px 4px 4px",
+                    borderRadius: 999,
+                    background: "var(--color-primary-10)",
+                    border: "1px solid var(--color-primary-20)",
                   }}
                 >
-                  {user.name?.charAt(0)?.toUpperCase() ?? "U"}
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      background: "var(--gradient-brand)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      fontSize: "var(--font-size-xs)",
+                      fontWeight: 700,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {user.avatar ? (
+                      <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      user.name?.charAt(0)?.toUpperCase() ?? "U"
+                    )}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "var(--font-size-sm)",
+                      fontWeight: 600,
+                      color: "var(--color-primary)",
+                    }}
+                  >
+                    {user.name}
+                  </span>
                 </div>
-                <span
-                  style={{
-                    fontSize: "var(--font-size-sm)",
-                    fontWeight: 600,
-                    color: "var(--color-primary)",
-                  }}
-                >
-                  {user.name}
-                </span>
-              </div>
+              </Link>
               <Button variant="ghost" size="sm" onClick={logout}>
                 Sign out
               </Button>

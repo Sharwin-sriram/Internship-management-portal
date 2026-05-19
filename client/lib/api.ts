@@ -1,3 +1,5 @@
+import { getToken } from './auth';
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:9933/api';
 
 export interface ApiResponse<T = unknown> {
@@ -8,7 +10,7 @@ export interface ApiResponse<T = unknown> {
 
 function getAuthHeaders(): HeadersInit {
   if (typeof window === 'undefined') return {};
-  const token = localStorage.getItem('internship_token');
+  const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -40,25 +42,8 @@ async function request<T>(
 export const postJson = <T = unknown>(path: string, data: unknown) =>
   request<T>('POST', path, data);
 
-export async function postForm<T = unknown>(path: string, formData: FormData): Promise<ApiResponse<T>> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('internship_token') : null;
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  try {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
-    const body = await res.json().catch(() => null);
-    return { ok: res.ok, status: res.status, body: body as T };
-  } catch {
-    return { ok: false, status: 0, body: null };
-  }
-}
+export const postAuthJson = <T = unknown>(path: string, data: unknown) =>
+  request<T>('POST', path, data, true);
 
 export const getJson = <T = unknown>(path: string) =>
   request<T>('GET', path, undefined, true);

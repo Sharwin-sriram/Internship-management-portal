@@ -24,9 +24,16 @@ const applicationSchema = new mongoose.Schema(
     cover_letter: {
       type: String,
     },
+    source: {
+      type: String,
+      default: "unknown",
+    },
     applied_at: {
       type: Date,
       default: Date.now,
+    },
+    offer_made_at: {
+      type: Date,
     },
     last_updated: {
       type: Date,

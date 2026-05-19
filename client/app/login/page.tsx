@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 
 const MAX_ATTEMPTS = 5;
+const LOCK_DURATION_MINUTES = 15;
+const LOCK_UNTIL_KEY = 'login_lock_until';
+const ATTEMPTS_KEY = 'login_attempts';
 
 /* ─── SVG Icons ─────────────────────────────────────────────── */
 function LockIcon({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) {
@@ -82,6 +85,7 @@ export default function LoginPage() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loginRole, setLoginRole] = useState<'student' | 'company'>('student');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -93,6 +97,41 @@ export default function LoginPage() {
   const isLocked = locked || attempts >= MAX_ATTEMPTS;
   const remainingAttempts = MAX_ATTEMPTS - attempts;
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const storedAttempts = localStorage.getItem(ATTEMPTS_KEY);
+    if (storedAttempts) {
+      const parsedAttempts = Number(storedAttempts);
+      if (!Number.isNaN(parsedAttempts)) {
+        setAttempts(parsedAttempts);
+      }
+    }
+
+    const storedUntil = localStorage.getItem(LOCK_UNTIL_KEY);
+    if (storedUntil) {
+      const lockUntil = Number(storedUntil);
+      if (!Number.isNaN(lockUntil) && Date.now() < lockUntil) {
+        setLocked(true);
+        setAttempts(MAX_ATTEMPTS);
+      } else {
+        localStorage.removeItem(LOCK_UNTIL_KEY);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(ATTEMPTS_KEY, String(attempts));
+
+    if (locked || attempts >= MAX_ATTEMPTS) {
+      const lockUntil = Date.now() + LOCK_DURATION_MINUTES * 60 * 1000;
+      localStorage.setItem(LOCK_UNTIL_KEY, String(lockUntil));
+    } else {
+      localStorage.removeItem(LOCK_UNTIL_KEY);
+    }
+  }, [attempts, locked]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isLocked) return;
@@ -100,7 +139,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    const err = await login(username, password);
+    const err = await login(username, password, loginRole);
     setLoading(false);
 
     if (err) {
@@ -113,6 +152,12 @@ export default function LoginPage() {
         setError(err);
       }
     } else {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(LOCK_UNTIL_KEY);
+        localStorage.removeItem(ATTEMPTS_KEY);
+      }
+      setAttempts(0);
+      setLocked(false);
       router.push('/dashboard');
     }
   }
@@ -202,6 +247,17 @@ export default function LoginPage() {
     letterSpacing: '0.01em',
   };
 
+  const roleButtonStyle = (active: boolean): React.CSSProperties => ({
+    padding: '10px 14px',
+    borderRadius: 10,
+    border: active ? '1.5px solid rgba(34,151,250,0.65)' : '1.5px solid var(--color-border)',
+    background: active ? 'rgba(34,151,250,0.08)' : '#fff',
+    color: active ? 'var(--color-primary)' : '#6b7280',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  });
+
   return (
     <>
       <style>{`
@@ -288,18 +344,26 @@ export default function LoginPage() {
         .submit-btn {
           width: 100%; padding: 14px 24px;
           font-size: 1rem; font-weight: 700;
-          border-radius: 10px; border: none; cursor: pointer;
+          border-radius: 10px; cursor: pointer;
           font-family: var(--font-sans); letter-spacing: 0.02em;
-          transition: all 0.2s ease; display: flex;
-          align-items: center; justify-content: center; gap: 8px;
-          color: #fff;
+          transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          background-color: transparent;
+          color: #2297FA;
+          border: 2px solid #2297FA;
         }
         .submit-btn:not(:disabled):hover {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 24px rgba(34,151,250,0.45) !important;
+          background-color: #2297FA;
+          border-color: #2297FA;
+          color: #fff;
         }
         .submit-btn:disabled {
-          cursor: not-allowed; opacity: 0.7;
+          cursor: not-allowed; opacity: 0.6;
+        }
+        .submit-btn.is-loading {
+          background-color: #2297FA;
+          border-color: #2297FA;
+          color: #fff;
         }
         .eye-btn {
           background: none; border: none; cursor: pointer;
@@ -473,20 +537,42 @@ export default function LoginPage() {
                 )}
 
                 {/* Username field */}
-                <div style={{ marginBottom: 18 }}>
-                  <label htmlFor="login-username" style={labelStyle}>Username</label>
+                  {/* Role selector */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={labelStyle}>Login as</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <button
+                        type="button"
+                        onClick={() => setLoginRole('student')}
+                        style={roleButtonStyle(loginRole === 'student')}
+                      >
+                        Student
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLoginRole('company')}
+                        style={roleButtonStyle(loginRole === 'company')}
+                      >
+                        Company
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Email field */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label htmlFor="login-username" style={labelStyle}>Email</label>
                   <div style={inputWrapperStyle('username', attempts > 0)}>
                     <span style={iconInInputStyle}><UserIcon /></span>
                     <input
                       id="login-username"
-                      type="text"
-                      placeholder="Enter your username"
+                        type="email"
+                        placeholder="Enter your email"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       onFocus={() => setFocusedField('username')}
                       onBlur={() => setFocusedField(null)}
                       required
-                      autoComplete="username"
+                        autoComplete="email"
                       style={inputStyle}
                     />
                   </div>
@@ -549,11 +635,7 @@ export default function LoginPage() {
                   id="login-submit"
                   type="submit"
                   disabled={loading || isLocked}
-                  className="submit-btn"
-                  style={{
-                    background: 'linear-gradient(135deg, #2297FA 0%, #8082D6 100%)',
-                    boxShadow: '0 4px 16px rgba(34,151,250,0.35)',
-                  }}
+                  className={`submit-btn${loading ? ' is-loading' : ''}`}
                 >
                   {loading ? (
                     <>
