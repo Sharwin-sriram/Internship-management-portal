@@ -34,6 +34,18 @@ export default function StudentInterviewsPage() {
             status: "Pending",
           }
         ]);
+        setUpcomingInterviews([
+          {
+            id: "int_2",
+            companyName: "TechGlobal",
+            role: "Frontend Developer",
+            date: "2026-05-24",
+            time: "02:00 PM",
+            type: "In-person",
+            interviewer: "John Smith",
+            status: "Scheduled",
+          }
+        ]);
       }
       setLoading(false);
     };
@@ -46,18 +58,7 @@ export default function StudentInterviewsPage() {
     alert(`Status updated to ${status}`);
   };
 
-  const upcomingInterviews = [
-    {
-      id: "int_2",
-      companyName: "TechGlobal",
-      role: "Frontend Developer",
-      date: "2026-05-24",
-      time: "02:00 PM",
-      type: "In-person" as const,
-      interviewer: "John Smith",
-      status: "Scheduled" as const,
-    }
-  ];
+
 
   // Mock data for timeline
   const timelineEvents = [
