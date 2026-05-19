@@ -7,7 +7,6 @@ import Button from "../../components/ui/Button";
 import {
   FiBriefcase,
   FiChevronRight,
-  FiBell,
   FiMapPin,
   FiCalendar,
 } from "react-icons/fi";
@@ -392,42 +391,7 @@ export default function DashboardPage() {
             Here&apos;s an overview of your internship journey.
           </p>
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: "var(--space-sm)",
-            alignItems: "center",
-          }}
-        >
-          <button
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: "50%",
-              background: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--color-foreground)",
-              cursor: "pointer",
-              transition: "all var(--transition-fast)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "var(--shadow-sm)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            <FiBell size={20} />
-          </button>
-          <Button variant="ghost" onClick={logout} id="dashboard-logout">
-            Sign out
-          </Button>
-        </div>
+        {/* Top header actions are provided by the global Header component. */}
       </header>
 
       {/* Quick Actions */}
