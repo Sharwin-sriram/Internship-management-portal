@@ -153,7 +153,7 @@ export default function Header() {
               }}
             >
               <Link
-                href={user.role === "company" ? "/dashboard/company/profile" : "/dashboard"}
+                href="/profile"
                 style={{ textDecoration: "none" }}
               >
                 <div
@@ -179,9 +179,14 @@ export default function Header() {
                       color: "white",
                       fontSize: "var(--font-size-xs)",
                       fontWeight: 700,
+                      overflow: "hidden",
                     }}
                   >
-                    {user.name?.charAt(0)?.toUpperCase() ?? "U"}
+                    {user.avatar ? (
+                      <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      user.name?.charAt(0)?.toUpperCase() ?? "U"
+                    )}
                   </div>
                   <span
                     style={{

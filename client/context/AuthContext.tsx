@@ -9,6 +9,7 @@ interface AuthContextValue {
   login: (email: string, password: string, role?: AuthUser['role']) => Promise<string | null>;
   logout: () => void;
   isLoading: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 interface LoginResponse {
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextValue>({
   login: async () => null,
   logout: () => {},
   isLoading: true,
+  refreshUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -69,8 +71,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }
 
+  async function refreshUser() {
+    const stored = getStoredUser();
+    if (stored?.token) {
+      const res = await getJson<{ success: boolean; data: AuthUser }>('/auth/me');
+      if (res.ok && res.body?.success) {
+        const authUser = { ...res.body.data, token: stored.token };
+        saveAuth(authUser);
+        setUser(authUser);
+      }
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
