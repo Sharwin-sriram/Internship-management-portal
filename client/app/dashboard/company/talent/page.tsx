@@ -135,15 +135,24 @@ export default function CompanyTalentPage() {
                 {student.contact_status === 'pending' && (
                   <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 700 }}>Pending approval</span>
                 )}
-                {student.contact_status === 'locked' && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
-                    onClick={() => handleUnlockRequest(student.id)}
+                    onClick={() => router.push(`/profile/${student.id}`)}
                   >
-                    Request contact
+                    View profile
                   </Button>
-                )}
+                  {student.contact_status === 'locked' && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleUnlockRequest(student.id)}
+                    >
+                      Request contact
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
             {student.contact_status === 'unlocked' && student.contact?.email && (

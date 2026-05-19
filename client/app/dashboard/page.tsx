@@ -56,6 +56,21 @@ type RecommendedInternship = {
   stipend: string;
 };
 
+type ProfileStudent = {
+  college?: string;
+  branch?: string;
+  cgpa?: number;
+  graduation_year?: number;
+  skills?: string[];
+  projects?: Array<{ title?: string; desc?: string }>;
+};
+
+type ProfileSummary = {
+  name?: string;
+  avatar?: string;
+  student?: ProfileStudent;
+};
+
 const companyLinks = [
   {
     label: "Post Internship",
@@ -190,6 +205,7 @@ export default function DashboardPage() {
   const [recommendedInternships, setRecommendedInternships] = useState<
     RecommendedInternship[]
   >([]);
+  const [profileComplete, setProfileComplete] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
@@ -210,19 +226,49 @@ export default function DashboardPage() {
     if (user && user.role !== "company") {
       const fetchDashboardData = async () => {
         try {
-          const res = await getJson<{
-            success: boolean;
-            data: {
-              stats: AppStat;
-              recentApplications: RecentApplication[];
-              recommendedInternships: RecommendedInternship[];
-            };
-          }>("/student-dashboard");
+          const [dashboardRes, profileRes] = await Promise.all([
+            getJson<{
+              success: boolean;
+              data: {
+                stats: AppStat;
+                recentApplications: RecentApplication[];
+                recommendedInternships: RecommendedInternship[];
+              };
+            }>("/student-dashboard"),
+            getJson<{ success: boolean; data: ProfileSummary }>("/profile"),
+          ]);
 
-          if (res.ok && res.body?.success) {
-            setStats(res.body.data.stats);
-            setRecentApplications(res.body.data.recentApplications);
-            setRecommendedInternships(res.body.data.recommendedInternships);
+          if (dashboardRes.ok && dashboardRes.body?.success) {
+            setStats(dashboardRes.body.data.stats);
+            setRecentApplications(dashboardRes.body.data.recentApplications);
+            setRecommendedInternships(
+              dashboardRes.body.data.recommendedInternships,
+            );
+          }
+
+          if (profileRes.ok && profileRes.body?.success) {
+            const { name, avatar, student } = profileRes.body.data || {};
+            const hasBasicInfo = Boolean(name?.trim());
+            const hasStudentDetails =
+              Boolean(student?.college?.trim()) &&
+              Boolean(student?.branch?.trim()) &&
+              typeof student?.cgpa === "number" &&
+              student.cgpa > 0 &&
+              typeof student?.graduation_year === "number" &&
+              student.graduation_year > 0 &&
+              Array.isArray(student?.skills) &&
+              student.skills.length > 0 &&
+              Array.isArray(student?.projects) &&
+              student.projects.length > 0 &&
+              student.projects.every(
+                (project) =>
+                  Boolean(project?.title?.trim()) &&
+                  Boolean(project?.desc?.trim()),
+              );
+
+            setProfileComplete(hasBasicInfo && hasStudentDetails);
+          } else {
+            setProfileComplete(false);
           }
         } catch (error) {
           console.error("Error fetching dashboard data:", error);
@@ -768,63 +814,66 @@ export default function DashboardPage() {
             <Button
               variant="secondary"
               style={{ width: "100%", marginTop: "var(--space-md)" }}
+              onClick={() => router.push("/explore")}
             >
               Explore More
             </Button>
           </div>
 
           {/* Action Card */}
-          <div
-            style={{
-              background: "var(--color-surface)",
-              borderRadius: "var(--radius-xl)",
-              border: "1px solid var(--color-border)",
-              padding: "var(--space-xl)",
-              textAlign: "center",
-            }}
-          >
+          {!profileComplete && (
             <div
               style={{
-                width: 64,
-                height: 64,
-                borderRadius: "50%",
-                background: "var(--color-primary-10)",
-                color: "var(--color-primary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto var(--space-md)",
+                background: "var(--color-surface)",
+                borderRadius: "var(--radius-xl)",
+                border: "1px solid var(--color-border)",
+                padding: "var(--space-xl)",
+                textAlign: "center",
               }}
             >
-              <FiBriefcase size={28} />
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  background: "var(--color-primary-10)",
+                  color: "var(--color-primary)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto var(--space-md)",
+                }}
+              >
+                <FiBriefcase size={28} />
+              </div>
+              <h3
+                style={{
+                  fontSize: "var(--font-size-lg)",
+                  fontWeight: 700,
+                  marginBottom: "var(--space-sm)",
+                }}
+              >
+                Complete your profile
+              </h3>
+              <p
+                style={{
+                  fontSize: "var(--font-size-sm)",
+                  color: "var(--color-muted)",
+                  marginBottom: "var(--space-lg)",
+                }}
+              >
+                Increase your chances of getting hired by adding more details to
+                your resume and portfolio.
+              </p>
+              <Button
+                variant="primary"
+                style={{ width: "100%" }}
+                onClick={() => router.push("/profile")}
+              >
+                Edit Profile
+              </Button>
             </div>
-            <h3
-              style={{
-                fontSize: "var(--font-size-lg)",
-                fontWeight: 700,
-                marginBottom: "var(--space-sm)",
-              }}
-            >
-              Complete your profile
-            </h3>
-            <p
-              style={{
-                fontSize: "var(--font-size-sm)",
-                color: "var(--color-muted)",
-                marginBottom: "var(--space-lg)",
-              }}
-            >
-              Increase your chances of getting hired by adding more details to
-              your resume and portfolio.
-            </p>
-            <Button
-              variant="primary"
-              style={{ width: "100%" }}
-              onClick={() => router.push("/profile")}
-            >
-              Edit Profile
-            </Button>
-          </div>
+          )}
         </section>
       </div>
     </div>
