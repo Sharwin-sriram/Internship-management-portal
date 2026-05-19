@@ -21,7 +21,41 @@ export const getProfile = async (req, res) => {
     if (user.role === "student") {
       const student = await Student.findOne({ user: user._id });
       if (student) {
-        profileData.student = student;
+        // Normalize skillProficiencies to a plain object for API consumers.
+        const studentObj = student.toObject();
+        let profObj = {};
+
+        // Case 1: stored as array of { skill, proficiency }
+        if (Array.isArray(studentObj.skillProficiencies)) {
+          studentObj.skillProficiencies.forEach((p) => {
+            if (p && p.skill)
+              profObj[p.skill] =
+                typeof p.proficiency === "number"
+                  ? p.proficiency
+                  : Number(p.proficiency) || 0;
+          });
+        }
+
+        // Case 2: stored as a Mongoose Map on the document (not toObject)
+        else if (
+          student.skillProficiencies &&
+          student.skillProficiencies instanceof Map
+        ) {
+          profObj = Object.fromEntries(student.skillProficiencies);
+        }
+
+        // Case 3: stored as a plain object mapping skill->number
+        else if (
+          studentObj.skillProficiencies &&
+          typeof studentObj.skillProficiencies === "object"
+        ) {
+          Object.keys(studentObj.skillProficiencies).forEach((k) => {
+            profObj[k] = Number(studentObj.skillProficiencies[k]) || 0;
+          });
+        }
+
+        studentObj.skillProficiencies = profObj;
+        profileData.student = studentObj;
       }
 
       const resume = await Document.findOne({
@@ -105,6 +139,8 @@ export const updateProfile = async (req, res) => {
 
     let updatedDetails = null;
 
+    const { studentSkillProficiencies } = req.body;
+
     if (req.user.role === "student" && studentDetails) {
       const studentUpdate = {};
 
@@ -131,6 +167,19 @@ export const updateProfile = async (req, res) => {
       }
       if (Array.isArray(studentDetails.skills)) {
         studentUpdate.skills = studentDetails.skills;
+      }
+      if (
+        studentSkillProficiencies &&
+        typeof studentSkillProficiencies === "object"
+      ) {
+        // Convert incoming object (name -> value) into array of subdocs [{skill, proficiency}]
+        const arr = Object.entries(studentSkillProficiencies).map(([k, v]) => {
+          let num = Number(v);
+          if (isNaN(num)) num = 0;
+          num = Math.max(0, Math.min(100, Math.round(num)));
+          return { skill: k, proficiency: num };
+        });
+        studentUpdate.skillProficiencies = arr;
       }
       if (typeof studentDetails.placement_eligible === "boolean") {
         studentUpdate.placement_eligible = studentDetails.placement_eligible;
