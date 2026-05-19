@@ -1,9 +1,9 @@
-import Company from '../models/Company.js';
-import User from '../models/user.js';
-import Internship from '../models/Internship.js';
-import Application from '../models/Application.js';
-import Student from '../models/Student.js';
-import TalentUnlockRequest from '../models/TalentUnlockRequest.js';
+import Company from "../models/Company.js";
+import User from "../models/user.js";
+import Internship from "../models/Internship.js";
+import Application from "../models/Application.js";
+import Student from "../models/Student.js";
+import TalentUnlockRequest from "../models/TalentUnlockRequest.js";
 
 // Helper for sending token response
 const sendTokenResponse = async (user, statusCode, res, extraData = {}) => {
@@ -16,13 +16,13 @@ const sendTokenResponse = async (user, statusCode, res, extraData = {}) => {
     httpOnly: true,
   };
 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === "production") {
     options.secure = true;
   }
 
   res
     .status(statusCode)
-    .cookie('token', token, options)
+    .cookie("token", token, options)
     .json({
       success: true,
       token,
@@ -66,19 +66,29 @@ export const createCompany = async (req, res) => {
     } = req.body;
 
     if (!req.user?._id) {
-      return res.status(401).json({ success: false, message: 'Unauthorized.' });
+      return res.status(401).json({ success: false, message: "Unauthorized." });
     }
 
-    if (!legal_name || !industry || !size || !website || !primary_contact?.name || !primary_contact?.email) {
+    if (
+      !legal_name ||
+      !industry ||
+      !size ||
+      !website ||
+      !primary_contact?.name ||
+      !primary_contact?.email
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Legal name, industry, size, website, and primary contact are required.',
+        message:
+          "Legal name, industry, size, website, and primary contact are required.",
       });
     }
 
     const existing = await Company.findOne({ user: req.user._id });
     if (existing) {
-      return res.status(400).json({ success: false, message: 'Company profile already exists.' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Company profile already exists." });
     }
 
     const company = new Company({
@@ -89,11 +99,11 @@ export const createCompany = async (req, res) => {
       size,
       website,
       primary_contact,
-      logo_url: logo_url || '',
-      description: description || '',
+      logo_url: logo_url || "",
+      description: description || "",
       social_links: social_links || [],
       office_locations: office_locations || [],
-      approval_status: 'pending',
+      approval_status: "pending",
       is_verified: false,
       profile_completed: true,
       profile_completed_at: new Date(),
@@ -110,17 +120,12 @@ export const createCompany = async (req, res) => {
 // @access  Public
 export const registerCompany = async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      password,
-      company_name,
-    } = req.body;
+    const { name, email, password, company_name } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Name, email, and password are required.',
+        message: "Name, email, and password are required.",
       });
     }
 
@@ -128,7 +133,7 @@ export const registerCompany = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists with this email.',
+        message: "User already exists with this email.",
       });
     }
 
@@ -136,27 +141,27 @@ export const registerCompany = async (req, res) => {
       name,
       email: email.toLowerCase(),
       password,
-      role: 'company',
+      role: "company",
     });
 
     const company = await Company.create({
       user: user._id,
-      company_name: company_name || '',
-      legal_name: '',
-      industry: '',
-      size: '',
-      website: '',
+      company_name: company_name || "",
+      legal_name: "",
+      industry: "",
+      size: "",
+      website: "",
       primary_contact: {
         name,
         email: email.toLowerCase(),
-        phone: '',
-        title: '',
+        phone: "",
+        title: "",
       },
-      logo_url: '',
-      description: '',
+      logo_url: "",
+      description: "",
       social_links: [],
       office_locations: [],
-      approval_status: 'pending',
+      approval_status: "pending",
       is_verified: false,
       profile_completed: false,
     });
@@ -165,7 +170,7 @@ export const registerCompany = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Server error during company registration',
+      message: "Server error during company registration",
     });
   }
 };
@@ -176,7 +181,9 @@ export const registerCompany = async (req, res) => {
 export const getCompanies = async (req, res) => {
   try {
     const companies = await Company.find();
-    res.status(200).json({ success: true, count: companies.length, data: companies });
+    res
+      .status(200)
+      .json({ success: true, count: companies.length, data: companies });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }
@@ -189,7 +196,9 @@ export const getCompanyById = async (req, res) => {
   try {
     const company = await Company.findById(req.params.id);
     if (!company) {
-      return res.status(404).json({ success: false, error: 'Company not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: "Company not found" });
     }
     res.status(200).json({ success: true, data: company });
   } catch (error) {
@@ -208,11 +217,18 @@ export const getMyCompany = async (req, res) => {
   try {
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
     res.status(200).json({ success: true, data: company });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while fetching company profile.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while fetching company profile.",
+      });
   }
 };
 
@@ -223,7 +239,9 @@ export const updateMyCompany = async (req, res) => {
   try {
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
 
     const updates = {
@@ -239,9 +257,16 @@ export const updateMyCompany = async (req, res) => {
       office_locations: req.body.office_locations ?? company.office_locations,
     };
 
-    const updated = await Company.findByIdAndUpdate(company._id, updates, { new: true, runValidators: true });
+    const updated = await Company.findByIdAndUpdate(company._id, updates, {
+      new: true,
+      runValidators: true,
+    });
 
-    if (updated && isCompanyProfileComplete(updated) && !updated.profile_completed) {
+    if (
+      updated &&
+      isCompanyProfileComplete(updated) &&
+      !updated.profile_completed
+    ) {
       updated.profile_completed = true;
       updated.profile_completed_at = new Date();
       await updated.save();
@@ -249,7 +274,12 @@ export const updateMyCompany = async (req, res) => {
 
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while updating company profile.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while updating company profile.",
+      });
   }
 };
 
@@ -258,11 +288,18 @@ export const updateMyCompany = async (req, res) => {
 // @access  Coordinator
 export const getCompanyRequests = async (req, res) => {
   try {
-    const status = req.query.status || 'pending';
+    const status = req.query.status || "pending";
     const companies = await Company.find({ approval_status: status });
-    res.status(200).json({ success: true, count: companies.length, data: companies });
+    res
+      .status(200)
+      .json({ success: true, count: companies.length, data: companies });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while fetching requests.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while fetching requests.",
+      });
   }
 };
 
@@ -272,23 +309,32 @@ export const getCompanyRequests = async (req, res) => {
 export const updateCompanyApproval = async (req, res) => {
   try {
     const { status } = req.body;
-    if (!['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status.' });
+    if (!["approved", "rejected"].includes(status)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid status." });
     }
 
     const company = await Company.findByIdAndUpdate(
       req.params.id,
-      { approval_status: status, is_verified: status === 'approved' },
+      { approval_status: status, is_verified: status === "approved" },
       { new: true, runValidators: true },
     );
 
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company not found." });
     }
 
     res.status(200).json({ success: true, data: company });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while updating approval.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while updating approval.",
+      });
   }
 };
 
@@ -302,16 +348,16 @@ export const loginCompany = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required',
+        message: "Email and password are required",
       });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
 
-    if (!user || user.role !== 'company') {
+    if (!user || user.role !== "company") {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
@@ -319,7 +365,7 @@ export const loginCompany = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
@@ -327,7 +373,7 @@ export const loginCompany = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Server error during login',
+      message: "Server error during login",
     });
   }
 };
@@ -339,26 +385,48 @@ export const getCompanyDashboard = async (req, res) => {
   try {
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
 
-    const internshipIds = await Internship.find({ company: company._id }).distinct('_id');
-    const activePostings = await Internship.countDocuments({ company: company._id, status: 'open' });
-    const totalApplications = await Application.countDocuments({ internship: { $in: internshipIds } });
-    const shortlistedCandidates = await Application.countDocuments({ internship: { $in: internshipIds }, status: 'shortlisted' });
-    const offers = await Application.countDocuments({ internship: { $in: internshipIds }, status: 'selected' });
-    const pendingApplications = await Application.countDocuments({ internship: { $in: internshipIds }, status: 'applied' });
-    const draftPostings = await Internship.countDocuments({ company: company._id, status: 'draft' });
+    const internshipIds = await Internship.find({
+      company: company._id,
+    }).distinct("_id");
+    const activePostings = await Internship.countDocuments({
+      company: company._id,
+      status: "open",
+    });
+    const totalApplications = await Application.countDocuments({
+      internship: { $in: internshipIds },
+    });
+    const shortlistedCandidates = await Application.countDocuments({
+      internship: { $in: internshipIds },
+      status: "shortlisted",
+    });
+    const offers = await Application.countDocuments({
+      internship: { $in: internshipIds },
+      status: "selected",
+    });
+    const pendingApplications = await Application.countDocuments({
+      internship: { $in: internshipIds },
+      status: "applied",
+    });
+    const draftPostings = await Internship.countDocuments({
+      company: company._id,
+      status: "draft",
+    });
 
-    const offerConversionRate = totalApplications > 0
-      ? Number(((offers / totalApplications) * 100).toFixed(1))
-      : 0;
+    const offerConversionRate =
+      totalApplications > 0
+        ? Number(((offers / totalApplications) * 100).toFixed(1))
+        : 0;
 
     // Get recommended interns based on company's posted internships
     const internships = await Internship.find({ company: company._id });
     const companySkills = internships.reduce((acc, intern) => {
       if (intern.skills_required) {
-        intern.skills_required.forEach(s => acc.add(s.toLowerCase()));
+        intern.skills_required.forEach((s) => acc.add(s.toLowerCase()));
       }
       return acc;
     }, new Set());
@@ -369,24 +437,24 @@ export const getCompanyDashboard = async (req, res) => {
     }
 
     let recommended = await Student.find(studentQuery)
-      .populate('user', 'name email')
+      .populate("user", "name email")
       .sort({ cgpa: -1 })
       .limit(4);
 
     if (recommended.length === 0) {
       recommended = await Student.find({ placement_eligible: true })
-        .populate('user', 'name email')
+        .populate("user", "name email")
         .sort({ cgpa: -1 })
         .limit(4);
     }
 
-    const recommendedInterns = recommended.map(student => ({
+    const recommendedInterns = recommended.map((student) => ({
       id: student._id,
-      name: student.user?.name || 'Student',
+      name: student.user?.name || "Student",
       branch: student.branch,
       cgpa: student.cgpa,
       skills: student.skills || [],
-      graduationYear: student.graduation_year
+      graduationYear: student.graduation_year,
     }));
 
     res.status(200).json({
@@ -402,7 +470,12 @@ export const getCompanyDashboard = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while loading dashboard.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while loading dashboard.",
+      });
   }
 };
 
@@ -413,33 +486,154 @@ export const getMyShortlistedApplications = async (req, res) => {
   try {
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
 
-    const internshipIds = await Internship.find({ company: company._id }).distinct('_id');
+    const internshipIds = await Internship.find({
+      company: company._id,
+    }).distinct("_id");
     const applications = await Application.find({
       internship: { $in: internshipIds },
-      status: { $in: ['shortlisted', 'interviewing'] },
+      status: { $in: ["shortlisted", "interviewing"] },
     })
       .populate({
-        path: 'student',
-        populate: { path: 'user', select: 'name email' },
+        path: "student",
+        populate: { path: "user", select: "name email" },
       })
-      .populate('internship', 'title')
+      .populate("internship", "title")
       .sort({ last_updated: -1 })
       .limit(100);
 
     const data = applications.map((app) => ({
       id: app._id,
-      studentName: app.student?.user?.name || 'Student',
-      studentEmail: app.student?.user?.email || '',
-      roleTitle: app.internship?.title || 'Internship',
+      studentId: app.student?._id,
+      studentName: app.student?.user?.name || "Student",
+      studentEmail: app.student?.user?.email || "",
+      roleTitle: app.internship?.title || "Internship",
       status: app.status,
     }));
 
     res.status(200).json({ success: true, data });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while loading applications.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while loading applications.",
+      });
+  }
+};
+
+// @desc    Applications submitted to the company's internships
+// @route   GET /api/companies/me/applications
+// @access  Company
+export const getMyApplications = async (req, res) => {
+  try {
+    const company = await getCompanyForUser(req.user._id);
+    if (!company) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
+    }
+
+    const internshipIds = await Internship.find({
+      company: company._id,
+    }).distinct("_id");
+    const { internshipId, status } = req.query;
+    const query = {
+      internship: { $in: internshipIds },
+    };
+
+    if (internshipId) {
+      query.internship = internshipId;
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    const applications = await Application.find(query)
+      .populate({
+        path: "student",
+        populate: { path: "user", select: "name email" },
+      })
+      .populate("internship", "title")
+      .sort({ last_updated: -1 })
+      .limit(200);
+
+    const data = applications.map((app) => ({
+      id: app._id,
+      studentId: app.student?._id,
+      studentName: app.student?.user?.name || "Student",
+      studentEmail: app.student?.user?.email || "",
+      roleTitle: app.internship?.title || "Internship",
+      internshipId: app.internship?._id,
+      status: app.status,
+      appliedAt: app.applied_at,
+    }));
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while loading applications.",
+      });
+  }
+};
+
+// @desc    Shortlist a company application
+// @route   PATCH /api/companies/me/applications/:applicationId/shortlist
+// @access  Company
+export const shortlistMyApplication = async (req, res) => {
+  try {
+    const company = await getCompanyForUser(req.user._id);
+    if (!company) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
+    }
+
+    const application = await Application.findById(
+      req.params.applicationId,
+    ).populate("internship", "company title");
+    if (!application) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Application not found." });
+    }
+
+    if (String(application.internship?.company) !== String(company._id)) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "You can only update applications for your own internships.",
+        });
+    }
+
+    if (application.status !== "shortlisted") {
+      application.status = "shortlisted";
+      await application.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: application._id,
+        status: application.status,
+      },
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while shortlisting application.",
+      });
   }
 };
 
@@ -450,18 +644,27 @@ export const getCompanyAnalytics = async (req, res) => {
   try {
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
 
     const rangeDays = Number(req.query.rangeDays || 90);
     const startDate = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000);
-    const internshipIds = await Internship.find({ company: company._id }).distinct('_id');
+    const internshipIds = await Internship.find({
+      company: company._id,
+    }).distinct("_id");
 
     const volume = await Application.aggregate([
-      { $match: { internship: { $in: internshipIds }, applied_at: { $gte: startDate } } },
+      {
+        $match: {
+          internship: { $in: internshipIds },
+          applied_at: { $gte: startDate },
+        },
+      },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$applied_at' } },
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$applied_at" } },
           count: { $sum: 1 },
         },
       },
@@ -472,7 +675,7 @@ export const getCompanyAnalytics = async (req, res) => {
       { $match: { internship: { $in: internshipIds } } },
       {
         $group: {
-          _id: { $ifNull: ['$source', 'unknown'] },
+          _id: { $ifNull: ["$source", "unknown"] },
           count: { $sum: 1 },
         },
       },
@@ -480,13 +683,13 @@ export const getCompanyAnalytics = async (req, res) => {
     ]);
 
     const offerStats = await Application.aggregate([
-      { $match: { internship: { $in: internshipIds }, status: 'selected' } },
+      { $match: { internship: { $in: internshipIds }, status: "selected" } },
       {
         $project: {
           durationMs: {
             $subtract: [
-              { $ifNull: ['$offer_made_at', '$last_updated'] },
-              '$applied_at',
+              { $ifNull: ["$offer_made_at", "$last_updated"] },
+              "$applied_at",
             ],
           },
         },
@@ -494,24 +697,37 @@ export const getCompanyAnalytics = async (req, res) => {
       {
         $group: {
           _id: null,
-          avgDurationMs: { $avg: '$durationMs' },
+          avgDurationMs: { $avg: "$durationMs" },
         },
       },
     ]);
 
     const avgMs = offerStats[0]?.avgDurationMs || 0;
-    const averageTimeToOfferDays = avgMs ? Number((avgMs / (1000 * 60 * 60 * 24)).toFixed(1)) : 0;
+    const averageTimeToOfferDays = avgMs
+      ? Number((avgMs / (1000 * 60 * 60 * 24)).toFixed(1))
+      : 0;
 
     res.status(200).json({
       success: true,
       data: {
-        applicationVolume: volume.map(entry => ({ date: entry._id, count: entry.count })),
-        sourceBreakdown: sources.map(entry => ({ source: entry._id, count: entry.count })),
+        applicationVolume: volume.map((entry) => ({
+          date: entry._id,
+          count: entry.count,
+        })),
+        sourceBreakdown: sources.map((entry) => ({
+          source: entry._id,
+          count: entry.count,
+        })),
         averageTimeToOfferDays,
       },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while loading analytics.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while loading analytics.",
+      });
   }
 };
 
@@ -522,11 +738,18 @@ export const getRecruiters = async (req, res) => {
   try {
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
     res.status(200).json({ success: true, data: company.recruiters || [] });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while fetching recruiters.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while fetching recruiters.",
+      });
   }
 };
 
@@ -537,19 +760,36 @@ export const addRecruiter = async (req, res) => {
   try {
     const { name, email, phone, title } = req.body;
     if (!name || !email) {
-      return res.status(400).json({ success: false, message: 'Recruiter name and email are required.' });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Recruiter name and email are required.",
+        });
     }
 
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
 
-    company.recruiters.push({ name, email, phone: phone || '', title: title || '' });
+    company.recruiters.push({
+      name,
+      email,
+      phone: phone || "",
+      title: title || "",
+    });
     await company.save();
     res.status(201).json({ success: true, data: company.recruiters });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while adding recruiter.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while adding recruiter.",
+      });
   }
 };
 
@@ -560,16 +800,23 @@ export const removeRecruiter = async (req, res) => {
   try {
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
 
     company.recruiters = company.recruiters.filter(
-      recruiter => recruiter._id.toString() !== req.params.recruiterId,
+      (recruiter) => recruiter._id.toString() !== req.params.recruiterId,
     );
     await company.save();
     res.status(200).json({ success: true, data: company.recruiters });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while removing recruiter.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while removing recruiter.",
+      });
   }
 };
 
@@ -580,7 +827,9 @@ export const searchTalent = async (req, res) => {
   try {
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
 
     const { skill, branch, minCgpa, graduationYear } = req.query;
@@ -591,33 +840,40 @@ export const searchTalent = async (req, res) => {
     if (minCgpa) filter.cgpa = { $gte: Number(minCgpa) };
     if (skill) filter.skills = { $in: [skill] };
 
-    const students = await Student.find(filter).populate('user', 'name email');
-    const studentIds = students.map(student => student._id);
+    const students = await Student.find(filter).populate("user", "name email");
+    const studentIds = students.map((student) => student._id);
 
     const approved = await TalentUnlockRequest.find({
       company: company._id,
       student: { $in: studentIds },
-      status: 'approved',
+      status: "approved",
     });
-    const approvedSet = new Set(approved.map(item => item.student.toString()));
+    const approvedSet = new Set(
+      approved.map((item) => item.student.toString()),
+    );
 
-    const data = students.map(student => {
+    const data = students.map((student) => {
       const approvedContact = approvedSet.has(student._id.toString());
       return {
         id: student._id,
-        name: student.user?.name || 'Student',
+        name: student.user?.name || "Student",
         branch: student.branch,
         cgpa: student.cgpa,
         graduation_year: student.graduation_year,
         skills: student.skills || [],
         contact: approvedContact ? { email: student.user?.email } : null,
-        contact_status: approvedContact ? 'unlocked' : 'locked',
+        contact_status: approvedContact ? "unlocked" : "locked",
       };
     });
 
     res.status(200).json({ success: true, count: data.length, data });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while searching talent.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while searching talent.",
+      });
   }
 };
 
@@ -628,23 +884,38 @@ export const requestTalentUnlock = async (req, res) => {
   try {
     const { studentId } = req.body;
     if (!studentId) {
-      return res.status(400).json({ success: false, message: 'Student ID is required.' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Student ID is required." });
     }
 
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
 
-    const existing = await TalentUnlockRequest.findOne({ company: company._id, student: studentId });
+    const existing = await TalentUnlockRequest.findOne({
+      company: company._id,
+      student: studentId,
+    });
     if (existing) {
       return res.status(200).json({ success: true, data: existing });
     }
 
-    const request = await TalentUnlockRequest.create({ company: company._id, student: studentId });
+    const request = await TalentUnlockRequest.create({
+      company: company._id,
+      student: studentId,
+    });
     res.status(201).json({ success: true, data: request });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while requesting unlock.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while requesting unlock.",
+      });
   }
 };
 
@@ -655,13 +926,24 @@ export const listTalentUnlockRequests = async (req, res) => {
   try {
     const company = await getCompanyForUser(req.user._id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Company profile not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
 
-    const requests = await TalentUnlockRequest.find({ company: company._id }).populate('student', 'branch cgpa graduation_year');
-    res.status(200).json({ success: true, count: requests.length, data: requests });
+    const requests = await TalentUnlockRequest.find({
+      company: company._id,
+    }).populate("student", "branch cgpa graduation_year");
+    res
+      .status(200)
+      .json({ success: true, count: requests.length, data: requests });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while fetching requests.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while fetching requests.",
+      });
   }
 };
 
@@ -672,17 +954,24 @@ export const approveTalentUnlockRequest = async (req, res) => {
   try {
     const request = await TalentUnlockRequest.findById(req.params.id);
     if (!request) {
-      return res.status(404).json({ success: false, message: 'Request not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Request not found." });
     }
 
-    request.status = 'approved';
+    request.status = "approved";
     request.approved_by = req.user._id;
     request.approved_at = new Date();
     await request.save();
 
     res.status(200).json({ success: true, data: request });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while approving request.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while approving request.",
+      });
   }
 };
 
@@ -693,16 +982,23 @@ export const rejectTalentUnlockRequest = async (req, res) => {
   try {
     const request = await TalentUnlockRequest.findById(req.params.id);
     if (!request) {
-      return res.status(404).json({ success: false, message: 'Request not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Request not found." });
     }
 
-    request.status = 'rejected';
+    request.status = "rejected";
     request.approved_by = req.user._id;
     request.approved_at = new Date();
     await request.save();
 
     res.status(200).json({ success: true, data: request });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error while rejecting request.' });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while rejecting request.",
+      });
   }
 };
