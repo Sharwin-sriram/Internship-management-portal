@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FormField, Textarea, Select } from "../../../../../components/ui/FormField";
-import Button from "../../../../../components/ui/Button";
+import { FormField, Textarea, Select } from "../../../../components/ui/FormField";
+import Button from "../../../../components/ui/Button";
 
-import { postJson } from "../../../../../lib/api";
+import { postJson } from "../../../../lib/api";
 
 // Simple Range Slider Component for Feedback
 const RangeSlider = ({ label, value, onChange }: { label: string; value: number; onChange: (val: number) => void }) => (
@@ -119,7 +119,7 @@ export default function InterviewFeedbackPage() {
           <div style={{ borderTop: "1px solid var(--color-border)", margin: "var(--space-md) 0" }} />
 
           <FormField label="Overall Recommendation" id="recommendation">
-            <Select name="recommendation" value={recommendation} onChange={(e) => setRecommendation(e.target.value)} required>
+            <Select name="recommendation" value={recommendation} onChange={(e: any) => setRecommendation(e.target.value)} required>
               <option value="Selected">Strong Hire (Selected)</option>
               <option value="Hold">Hold for Comparison</option>
               <option value="Rejected">Do Not Hire (Rejected)</option>
@@ -131,7 +131,7 @@ export default function InterviewFeedbackPage() {
               name="comments" 
               placeholder="Provide specific examples from the interview..." 
               value={comments} 
-              onChange={(e) => setComments(e.target.value)} 
+              onChange={(e: any) => setComments(e.target.value)} 
               rows={6} 
               required
             />

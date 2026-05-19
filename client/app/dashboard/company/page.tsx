@@ -6,6 +6,11 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../context/AuthContext';
 import { getJson } from '../../../lib/api';
 
+interface Recruiter {
+  name: string;
+  email: string;
+}
+
 interface CompanyProfile {
   _id: string;
   company_name?: string;
@@ -27,6 +32,11 @@ interface CompanyProfile {
     postal_code?: string;
   }[];
   recruiters?: Recruiter[];
+  primary_contact?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
 }
 
 

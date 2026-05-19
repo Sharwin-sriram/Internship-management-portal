@@ -39,6 +39,12 @@ type RecommendedInternship = {
   stipend: string;
 };
 
+const studentLinks = [
+  { label: 'Applications', icon: '📝', desc: 'Track your job applications', href: '/dashboard/student/applications' },
+  { label: 'Documents',    icon: '📁', desc: 'Manage your resumes and files', href: '/dashboard/student/documents' },
+  { label: 'Interviews',   icon: '📅', desc: 'View scheduled interviews', href: '/dashboard/student/interviews' },
+];
+
 const companyLinks = [
   { label: 'Post Internship',    icon: '➕', desc: 'Create a new internship listing', href: '/dashboard/company/post' },
   { label: 'Offer Letters',      icon: '✉️', desc: 'Generate and send offer letters', href: '/dashboard/company/offer-letters' },
@@ -249,7 +255,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
               {recommendedInternships.length > 0 ? recommendedInternships.map(internship => (
-                <div key={internship.id} style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-md)', border: '1px solid var(--color-border)', transition: 'all var(--transition-base)', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.transform='translateX(4px)'; e.currentTarget.style.borderColor='var(--color-primary)'; }} onMouseLeave={e => { e.currentTarget.style.transform='translateX(0)'; e.currentTarget.style.borderColor='var(--color-border)'; }}>
+                <div key={internship.id} onClick={() => router.push(`/dashboard/student/applications/apply?job=${encodeURIComponent(internship.role)}&internshipId=${internship.id}`)} style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-md)', border: '1px solid var(--color-border)', transition: 'all var(--transition-base)', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.transform='translateX(4px)'; e.currentTarget.style.borderColor='var(--color-primary)'; }} onMouseLeave={e => { e.currentTarget.style.transform='translateX(0)'; e.currentTarget.style.borderColor='var(--color-border)'; }}>
                   <h4 style={{ fontWeight: 700, fontSize: 'var(--font-size-base)', marginBottom: 4 }}>{internship.role}</h4>
                   <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-muted)', marginBottom: 8 }}>{internship.company}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', fontSize: 'var(--font-size-xs)', color: 'var(--color-muted)', fontWeight: 500 }}>
@@ -263,7 +269,7 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-            <Button variant="secondary" style={{ width: '100%', marginTop: 'var(--space-md)' }}>Explore More</Button>
+            <Button variant="secondary" style={{ width: '100%', marginTop: 'var(--space-md)' }} onClick={() => router.push('/dashboard/student/applications/apply')}>Explore More</Button>
           </div>
           
           {/* Action Card */}

@@ -56,3 +56,29 @@ export const deleteJson = <T = unknown>(path: string) =>
 
 export const patchJson = <T = unknown>(path: string, data: unknown) =>
   request<T>('PATCH', path, data, true);
+
+export async function postForm<T = unknown>(
+  path: string,
+  formData: FormData
+): Promise<ApiResponse<T>> {
+  const headers: Record<string, string> = {};
+  if (typeof window !== 'undefined') {
+    const token = getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    const body = await res.json().catch(() => null);
+    return { ok: res.ok, status: res.status, body: body as T };
+  } catch {
+    return { ok: false, status: 0, body: null };
+  }
+}
