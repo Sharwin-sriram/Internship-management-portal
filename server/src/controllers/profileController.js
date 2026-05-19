@@ -98,6 +98,61 @@ export const getProfile = async (req, res) => {
   }
 };
 
+// @desc    Get profile by ID
+// @route   GET /api/profile/:id
+// @access  Private
+export const getProfileById = async (req, res) => {
+  try {
+    let user = await User.findById(req.params.id).select("-password -cart");
+
+    if (!user) {
+      // Maybe the ID provided is a Student document ID instead of a User document ID
+      const student = await Student.findById(req.params.id);
+      if (student && student.user) {
+        user = await User.findById(student.user).select("-password -cart");
+      }
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    let profileData = { user };
+
+    if (user.role === "student") {
+      const student = await Student.findOne({ user: user._id });
+      if (student) {
+        profileData.student = student.toObject();
+      }
+
+      const resume = await Document.findOne({
+        user: user._id,
+        doc_type: "resume",
+      }).select("-file_data");
+
+      if (resume) {
+        profileData.resume = {
+          id: resume._id,
+          original_name: resume.original_name,
+        };
+      }
+    } else if (user.role === "company") {
+      const company = await Company.findOne({ user: user._id });
+      if (company) {
+        profileData.company = company.toObject();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: profileData,
+    });
+  } catch (error) {
+    console.error("Error in getProfileById:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
 // @desc    Update user profile
 // @route   PUT /api/profile
 // @access  Private
@@ -183,6 +238,12 @@ export const updateProfile = async (req, res) => {
       }
       if (typeof studentDetails.placement_eligible === "boolean") {
         studentUpdate.placement_eligible = studentDetails.placement_eligible;
+      }
+      if (typeof studentDetails.bio === "string") {
+        studentUpdate.bio = studentDetails.bio.trim();
+      }
+      if (Array.isArray(studentDetails.projects)) {
+        studentUpdate.projects = studentDetails.projects;
       }
 
       const existingStudent = await Student.findOne({ user: req.user._id });

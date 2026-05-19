@@ -1,5 +1,19 @@
-import DocumentVersion from '../models/DocumentVersion.js';
-import Document from '../models/Document.js';
+import DocumentVersion from "../models/DocumentVersion.js";
+import Document from "../models/Document.js";
+
+const canDownloadDocument = (user, document) => {
+  if (!user || !document) return false;
+
+  if (
+    document.user.toString() === user._id.toString() ||
+    user.role === "admin" ||
+    user.role === "coordinator"
+  ) {
+    return true;
+  }
+
+  return user.role === "company" && document.doc_type === "resume";
+};
 
 // @desc    Get all versions of a document
 // @route   GET /api/documents/:id/versions
@@ -7,35 +21,35 @@ import Document from '../models/Document.js';
 export const getDocumentVersions = async (req, res) => {
   try {
     const documentId = req.params.id;
-    
+
     // Validate document access
     const document = await Document.findById(documentId);
     if (!document) {
-      return res.status(404).json({ success: false, message: 'Document not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Document not found" });
     }
 
-    if (
-      document.user.toString() !== req.user._id.toString() &&
-      req.user.role !== 'admin' &&
-      req.user.role !== 'coordinator'
-    ) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (!canDownloadDocument(req.user, document)) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized" });
     }
 
     const versions = await DocumentVersion.find({ document: documentId })
-      .select('-file_data')
-      .sort('-version_number');
+      .select("-file_data")
+      .sort("-version_number");
 
     res.status(200).json({
       success: true,
       count: versions.length,
-      data: versions
+      data: versions,
     });
   } catch (error) {
-    console.error('Get versions error:', error);
+    console.error("Get versions error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch document versions'
+      message: "Failed to fetch document versions",
     });
   }
 };
@@ -49,19 +63,25 @@ export const restoreDocumentVersion = async (req, res) => {
 
     const document = await Document.findById(id);
     if (!document) {
-      return res.status(404).json({ success: false, message: 'Document not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Document not found" });
     }
 
     if (
       document.user.toString() !== req.user._id.toString() &&
-      req.user.role !== 'admin'
+      req.user.role !== "admin"
     ) {
-      return res.status(403).json({ success: false, message: 'Not authorized to restore' });
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized to restore" });
     }
 
     const versionToRestore = await DocumentVersion.findById(versionId);
     if (!versionToRestore || versionToRestore.document.toString() !== id) {
-      return res.status(404).json({ success: false, message: 'Version not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Version not found" });
     }
 
     // Update main document to reflect restored version
@@ -84,19 +104,19 @@ export const restoreDocumentVersion = async (req, res) => {
       original_name: versionToRestore.original_name,
       file_size: versionToRestore.file_size,
       restored_from_version: versionToRestore.version_number,
-      change_description: `Restored from version ${versionToRestore.version_number}`
+      change_description: `Restored from version ${versionToRestore.version_number}`,
     });
 
     res.status(200).json({
       success: true,
       message: `Document restored to version ${versionToRestore.version_number}`,
-      data: document
+      data: document,
     });
   } catch (error) {
-    console.error('Restore version error:', error);
+    console.error("Restore version error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to restore document version'
+      message: "Failed to restore document version",
     });
   }
 };
@@ -110,33 +130,50 @@ export const downloadDocumentVersion = async (req, res) => {
 
     const document = await Document.findById(id);
     if (!document) {
-      return res.status(404).json({ success: false, message: 'Document not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Document not found" });
     }
 
     if (
       document.user.toString() !== req.user._id.toString() &&
-      req.user.role !== 'admin' &&
-      req.user.role !== 'coordinator'
+      req.user.role !== "admin" &&
+      req.user.role !== "coordinator"
     ) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized" });
     }
 
     const version = await DocumentVersion.findById(versionId);
     if (!version || version.document.toString() !== id) {
-      return res.status(404).json({ success: false, message: 'Version not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Version not found" });
     }
 
     if (!version.file_data) {
-      return res.status(404).json({ success: false, message: 'Version binary data not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Version binary data not found" });
     }
 
-    res.set('Content-Type', version.mime_type);
-    res.set('Content-Disposition', `inline; filename="v${version.version_number}_${version.original_name}"`);
+    res.set("Content-Type", version.mime_type);
+    res.set(
+      "Content-Disposition",
+      `inline; filename="v${version.version_number}_${version.original_name}"`,
+    );
     res.send(version.file_data);
   } catch (error) {
-    console.error('Download version error:', error);
-    res.status(500).json({ success: false, message: 'Failed to download version' });
+    console.error("Download version error:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to download version" });
   }
 };
 
-export default { getDocumentVersions, restoreDocumentVersion, downloadDocumentVersion };
+export default {
+  getDocumentVersions,
+  restoreDocumentVersion,
+  downloadDocumentVersion,
+};

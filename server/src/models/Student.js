@@ -38,6 +38,16 @@ const studentSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    bio: {
+      type: String,
+      default: "",
+    },
+    projects: [
+      {
+        title: { type: String },
+        desc: { type: String },
+      },
+    ],
   },
   {
     timestamps: true,
