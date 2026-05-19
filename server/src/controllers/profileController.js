@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import Student from "../models/Student.js";
 import Company from "../models/Company.js";
+import Document from "../models/Document.js";
 
 // @desc    Get user profile
 // @route   GET /api/profile
@@ -21,6 +22,23 @@ export const getProfile = async (req, res) => {
       const student = await Student.findOne({ user: user._id });
       if (student) {
         profileData.student = student;
+      }
+
+      const resume = await Document.findOne({
+        user: user._id,
+        doc_type: "resume",
+      }).select("-file_data");
+
+      if (resume) {
+        profileData.resume = {
+          id: resume._id,
+          original_name: resume.original_name,
+          version: resume.version,
+          mime_type: resume.mime_type,
+          is_verified: resume.is_verified,
+          uploaded_at: resume.uploaded_at,
+          updatedAt: resume.updatedAt,
+        };
       }
     } else if (user.role === "company") {
       const company = await Company.findOne({ user: user._id });

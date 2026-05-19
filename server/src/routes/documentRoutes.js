@@ -23,8 +23,17 @@ const storage = multer.memoryStorage();
 
 // File filter to accept only specific file types
 const fileFilter = (req, file, cb) => {
+  const documentType = req.body?.documentType;
+
+  if (documentType === 'resume') {
+    if (file.mimetype === 'application/pdf') {
+      return cb(null, true);
+    }
+    return cb(new Error('Resume must be a PDF file.'), false);
+  }
+
   const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-  
+
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {

@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { getJson, putJson } from "../../lib/api";
 import Button from "../../components/ui/Button";
+import ResumeSection from "../../components/student/ResumeSection";
 import {
   FiUser,
   FiMail,
@@ -35,6 +36,16 @@ type StudentProfile = {
   graduation_year: number;
   skills: string[];
   placement_eligible: boolean;
+};
+
+type ResumeMeta = {
+  id: string;
+  original_name: string;
+  version: number;
+  mime_type: string;
+  is_verified: boolean;
+  uploaded_at: string;
+  updatedAt: string;
 };
 
 type CompanyProfile = {
@@ -69,6 +80,7 @@ export default function ProfilePage() {
     placement_eligible: true,
   });
   const [skillsInput, setSkillsInput] = useState("");
+  const [resume, setResume] = useState<ResumeMeta | null>(null);
 
   // Company State
   const [companyDetails, setCompanyDetails] = useState<CompanyProfile>({
@@ -103,6 +115,7 @@ export default function ProfilePage() {
           user: UserProfile;
           student?: StudentProfile;
           company?: CompanyProfile;
+          resume?: ResumeMeta;
         };
       }>("/profile");
       if (res.ok && res.body?.success) {
@@ -115,6 +128,7 @@ export default function ProfilePage() {
         if (res.body.data.company) {
           setCompanyDetails(res.body.data.company);
         }
+        setResume(res.body.data.resume ?? null);
       }
     } catch (error) {
       console.error("Failed to fetch profile", error);
@@ -742,6 +756,10 @@ export default function ProfilePage() {
               </div>
             )}
           </section>
+        )}
+
+        {user.role === "student" && (
+          <ResumeSection initialResume={resume} />
         )}
 
         {user.role === "company" && (
