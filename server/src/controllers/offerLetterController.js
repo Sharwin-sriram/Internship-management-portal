@@ -6,12 +6,6 @@ import Company from "../models/Company.js";
 import Internship from "../models/Internship.js";
 import emailService from "../services/emailService.js";
 import { generateOfferLetterPDF } from "../services/pdfService.js";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // @desc    Generate offer letter from template
 // @route   POST /api/offer-letters/generate
@@ -378,79 +372,6 @@ export const rejectOfferLetter = async (req, res) => {
   }
 };
 
-// @desc    Download offer letter PDF
-// @route   GET /api/offer-letters/:id/download
-// @access  Private
-export const downloadOfferLetterPDF = async (req, res) => {
-  try {
-    const offerLetter = await OfferLetter.findById(req.params.id)
-      .populate("student")
-      .populate("company");
-
-    if (!offerLetter) {
-      return res.status(404).json({
-        success: false,
-        message: "Offer letter not found",
-      });
-    }
-
-    // Check access
-    if (
-      req.user.role !== "admin" &&
-      req.user.role !== "coordinator" &&
-      req.user.role !== "company" &&
-      offerLetter.student._id.toString() !== req.user._id.toString()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to download this offer letter",
-      });
-    }
-
-    // Check if PDF exists
-    if (!offerLetter.pdf_url) {
-      return res.status(404).json({
-        success: false,
-        message: "PDF not generated yet. Please generate the PDF first.",
-      });
-    }
-
-    // Get the file path
-    const filePath = path.join(__dirname, "../..", offerLetter.pdf_url);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        success: false,
-        message: "PDF file not found on server",
-      });
-    }
-
-    // Set headers for download
-    const fileName = `offer-letter-${offerLetter.student.name.replace(/\s+/g, "-")}-${offerLetter._id}.pdf`;
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-
-    // Stream the file
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
-
-    fileStream.on("error", (error) => {
-      console.error("File stream error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Error streaming PDF file",
-      });
-    });
-  } catch (error) {
-    console.error("Download offer letter error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to download offer letter",
-    });
-  }
-};
-
 // Helper functions
 function replaceTemplateVariables(content, variables) {
   let result = content;
@@ -497,5 +418,4 @@ export default {
   getAllOfferLetters,
   acceptOfferLetter,
   rejectOfferLetter,
-  downloadOfferLetterPDF,
 };
