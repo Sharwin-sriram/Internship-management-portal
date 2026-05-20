@@ -4,6 +4,8 @@ import {
   getInterviews,
   getInterviewById,
   updateInterviewStatus,
+  completeInterview,
+  rescheduleInterviewCompany,
   acceptInterview,
   declineInterview,
   requestReschedule,
@@ -20,6 +22,7 @@ import {
   scheduleInterviewRules,
   interviewIdParam,
   rescheduleRules,
+  companyRescheduleRules,
   statusUpdateRules,
   feedbackRules,
   advanceRoundRules,
@@ -58,6 +61,14 @@ router.patch(
 );
 
 router.post(
+  "/:id/complete",
+  authorize("company", "coordinator", "admin"),
+  interviewIdParam,
+  handleValidationErrors,
+  asyncHandler(completeInterview),
+);
+
+router.post(
   "/:id/accept",
   authorize("student"),
   interviewIdParam,
@@ -79,6 +90,14 @@ router.patch(
   rescheduleRules,
   handleValidationErrors,
   asyncHandler(requestReschedule),
+);
+
+router.patch(
+  "/:id/reschedule-company",
+  authorize("company", "coordinator", "admin"),
+  companyRescheduleRules,
+  handleValidationErrors,
+  asyncHandler(rescheduleInterviewCompany),
 );
 
 router.post(
