@@ -58,12 +58,35 @@ type ResumeMeta = {
 
 type CompanyProfile = {
   name: string;
+  legal_name?: string;
   description: string;
   website: string;
   location: string;
   industry: string;
   logo: string;
+  size?: string;
+  primary_contact?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    title?: string;
+  };
+  social_links?: { platform?: string; url?: string }[];
+  office_locations?: {
+    label?: string;
+    address_line1?: string;
+    city?: string;
+    country?: string;
+  }[];
 };
+
+const ensureHttpsPrefix = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
+const stripHttpsPrefix = (value: string) => value.replace(/^https?:\/\//i, "");
 
 export default function ProfilePage() {
   const { user, isLoading: authLoading, refreshUser } = useAuth();
@@ -95,12 +118,25 @@ export default function ProfilePage() {
   // Company State
   const [companyDetails, setCompanyDetails] = useState<CompanyProfile>({
     name: "",
+    legal_name: "",
     description: "",
     website: "",
     location: "",
     industry: "",
     logo: "",
+    size: "",
+    primary_contact: { name: "", email: "", phone: "", title: "" },
+    social_links: [],
+    office_locations: [],
   });
+  const [industryOptions, setIndustryOptions] = useState<string[]>([]);
+  const predefinedCompanySizes = ["1-10", "10-20", "20-50", "50-100", "Custom"];
+  const isPredefinedCompanySize = (size?: string) =>
+    Boolean(size && predefinedCompanySizes.includes(size));
+  const [isCustomCompanySize, setIsCustomCompanySize] = useState(false);
+  const isPredefinedIndustry = (industry?: string) =>
+    Boolean(industry && industryOptions.includes(industry));
+  const [isCustomIndustry, setIsCustomIndustry] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -119,15 +155,25 @@ export default function ProfilePage() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const res = await getJson<{
-        success: boolean;
-        data: {
-          user: UserProfile;
-          student?: StudentProfile;
-          company?: CompanyProfile;
-          resume?: ResumeMeta;
-        };
-      }>("/profile");
+      const [res, industriesRes] = await Promise.all([
+        getJson<{
+          success: boolean;
+          data: {
+            user: UserProfile;
+            student?: StudentProfile;
+            company?: CompanyProfile;
+            resume?: ResumeMeta;
+          };
+        }>("/profile"),
+        getJson<{ success: boolean; data: { name: string }[] }>("/industries"),
+      ]);
+      const nextIndustryOptions =
+        industriesRes.ok && industriesRes.body?.success
+          ? industriesRes.body.data.map((item) => item.name).filter(Boolean)
+          : [];
+      if (industriesRes.ok && industriesRes.body?.success) {
+        setIndustryOptions(nextIndustryOptions);
+      }
       if (res.ok && res.body?.success) {
         setUserName(res.body.data.user.name || "");
         setUserAvatar(res.body.data.user.avatar || "");
@@ -152,8 +198,73 @@ export default function ProfilePage() {
               : [],
           );
         }
+        // If the profile endpoint returned limited company data, try fetching full company profile
         if (res.body.data.company) {
-          setCompanyDetails(res.body.data.company);
+          // company from /api/profile is a simplified object; keep that but also try to fetch full company
+          try {
+            const full = await getJson<{ success: boolean; data: any }>(
+              "/companies/me",
+            );
+            if (full.ok && full.body?.success) {
+              const c = full.body.data;
+              const nextSize = c.size || "";
+              setIsCustomCompanySize(
+                nextSize !== "" && !isPredefinedCompanySize(nextSize),
+              );
+              const nextIndustry = c.industry || "";
+              setIsCustomIndustry(
+                nextIndustry !== "" &&
+                  !nextIndustryOptions.includes(nextIndustry),
+              );
+              setCompanyDetails({
+                name:
+                  c.company_name ||
+                  c.legal_name ||
+                  res.body.data.company.name ||
+                  "",
+                legal_name: c.legal_name || "",
+                description: c.description || "",
+                website: stripHttpsPrefix(c.website || ""),
+                location:
+                  (c.office_locations && c.office_locations[0]?.city) ||
+                  res.body.data.company.location ||
+                  "",
+                industry: nextIndustry || res.body.data.company.industry || "",
+                logo: c.logo_url || res.body.data.company.logo || "",
+                size: nextSize,
+                primary_contact: c.primary_contact || {
+                  name: "",
+                  email: "",
+                  phone: "",
+                  title: "",
+                },
+                social_links: c.social_links || [],
+                office_locations: c.office_locations || [],
+              });
+            } else {
+              const nextSize = res.body.data.company.size || "";
+              setIsCustomCompanySize(
+                nextSize !== "" && !isPredefinedCompanySize(nextSize),
+              );
+              const nextIndustry = res.body.data.company.industry || "";
+              setIsCustomIndustry(
+                nextIndustry !== "" &&
+                  !nextIndustryOptions.includes(nextIndustry),
+              );
+              setCompanyDetails(res.body.data.company);
+            }
+          } catch (e) {
+            const nextSize = res.body.data.company.size || "";
+            setIsCustomCompanySize(
+              nextSize !== "" && !isPredefinedCompanySize(nextSize),
+            );
+            const nextIndustry = res.body.data.company.industry || "";
+            setIsCustomIndustry(
+              nextIndustry !== "" &&
+                !nextIndustryOptions.includes(nextIndustry),
+            );
+            setCompanyDetails(res.body.data.company);
+          }
         }
         setResume(res.body.data.resume ?? null);
       }
@@ -188,15 +299,34 @@ export default function ProfilePage() {
         payload.studentSkillProficiencies = Object.fromEntries(
           skillEntries.map((s) => [s.name, s.proficiency]),
         );
-      } else if (user?.role === "company") {
-        payload.companyDetails = companyDetails;
       }
 
-      const res = await putJson<{
-        success: boolean;
-        data: any;
-        message?: string;
-      }>("/profile", payload);
+      let res;
+      if (user?.role === "company") {
+        // Save full company profile via companies API which supports legal_name, size, primary_contact, etc.
+        const companyPayload: any = {
+          company_name: companyDetails.name,
+          legal_name: companyDetails.legal_name,
+          industry: companyDetails.industry,
+          size: companyDetails.size,
+          website: ensureHttpsPrefix(companyDetails.website),
+          primary_contact: companyDetails.primary_contact,
+          description: companyDetails.description,
+          social_links: companyDetails.social_links,
+          office_locations: companyDetails.office_locations,
+        };
+
+        res = await putJson<{ success: boolean; data: any }>(
+          "/companies/me",
+          companyPayload,
+        );
+      } else {
+        res = await putJson<{
+          success: boolean;
+          data: any;
+          message?: string;
+        }>("/profile", payload);
+      }
 
       if (res.ok && res.body?.success) {
         setEditing(false);
@@ -1108,6 +1238,228 @@ export default function ProfilePage() {
                     }}
                   />
                 </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "var(--font-size-sm)",
+                      fontWeight: 600,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Legal Name
+                  </label>
+                  <input
+                    type="text"
+                    value={companyDetails.legal_name || ""}
+                    onChange={(e) =>
+                      setCompanyDetails({
+                        ...companyDetails,
+                        legal_name: e.target.value,
+                      })
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--color-border)",
+                      background: "var(--color-background)",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "var(--font-size-sm)",
+                      fontWeight: 600,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Company Size
+                  </label>
+                  {!isCustomCompanySize ? (
+                    <select
+                      value={
+                        isPredefinedCompanySize(companyDetails.size)
+                          ? companyDetails.size
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const nextSize = e.target.value;
+                        if (nextSize === "Custom") {
+                          setIsCustomCompanySize(true);
+                          return;
+                        }
+                        setCompanyDetails({
+                          ...companyDetails,
+                          size: nextSize,
+                        });
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "10px 14px",
+                        borderRadius: "var(--radius)",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-background)",
+                      }}
+                    >
+                      <option value="" disabled>
+                        Select company size
+                      </option>
+                      {predefinedCompanySizes
+                        .filter((sizeOption) => sizeOption !== "Custom")
+                        .map((sizeOption) => (
+                          <option key={sizeOption} value={sizeOption}>
+                            {sizeOption}
+                          </option>
+                        ))}
+                      <option value="Custom">Custom</option>
+                    </select>
+                  ) : (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <input
+                        type="text"
+                        placeholder="Enter custom size"
+                        value={companyDetails.size || ""}
+                        onChange={(e) =>
+                          setCompanyDetails({
+                            ...companyDetails,
+                            size: e.target.value,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "var(--radius)",
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-background)",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomCompanySize(false);
+                          setCompanyDetails({
+                            ...companyDetails,
+                            size: "",
+                          });
+                        }}
+                        style={{
+                          justifySelf: "start",
+                          padding: "8px 12px",
+                          borderRadius: "var(--radius)",
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-background)",
+                          cursor: "pointer",
+                          fontSize: "var(--font-size-sm)",
+                        }}
+                      >
+                        Choose a preset size
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "var(--font-size-sm)",
+                      fontWeight: 600,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Primary Contact
+                  </label>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 8,
+                    }}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={companyDetails.primary_contact?.name || ""}
+                      onChange={(e) =>
+                        setCompanyDetails({
+                          ...companyDetails,
+                          primary_contact: {
+                            ...(companyDetails.primary_contact || {}),
+                            name: e.target.value,
+                          },
+                        })
+                      }
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: "var(--radius)",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-background)",
+                      }}
+                    />
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={companyDetails.primary_contact?.email || ""}
+                      onChange={(e) =>
+                        setCompanyDetails({
+                          ...companyDetails,
+                          primary_contact: {
+                            ...(companyDetails.primary_contact || {}),
+                            email: e.target.value,
+                          },
+                        })
+                      }
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: "var(--radius)",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-background)",
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Phone"
+                      value={companyDetails.primary_contact?.phone || ""}
+                      onChange={(e) =>
+                        setCompanyDetails({
+                          ...companyDetails,
+                          primary_contact: {
+                            ...(companyDetails.primary_contact || {}),
+                            phone: e.target.value,
+                          },
+                        })
+                      }
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: "var(--radius)",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-background)",
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Title"
+                      value={companyDetails.primary_contact?.title || ""}
+                      onChange={(e) =>
+                        setCompanyDetails({
+                          ...companyDetails,
+                          primary_contact: {
+                            ...(companyDetails.primary_contact || {}),
+                            title: e.target.value,
+                          },
+                        })
+                      }
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: "var(--radius)",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-background)",
+                      }}
+                    />
+                  </div>
+                </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <label
                     style={{
@@ -1149,23 +1501,85 @@ export default function ProfilePage() {
                   >
                     Industry
                   </label>
-                  <input
-                    type="text"
-                    value={companyDetails.industry}
-                    onChange={(e) =>
-                      setCompanyDetails({
-                        ...companyDetails,
-                        industry: e.target.value,
-                      })
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "10px 14px",
-                      borderRadius: "var(--radius)",
-                      border: "1px solid var(--color-border)",
-                      background: "var(--color-background)",
-                    }}
-                  />
+                  {!isCustomIndustry ? (
+                    <select
+                      value={
+                        isPredefinedIndustry(companyDetails.industry)
+                          ? companyDetails.industry
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const nextIndustry = e.target.value;
+                        if (nextIndustry === "Custom") {
+                          setIsCustomIndustry(true);
+                          return;
+                        }
+                        setCompanyDetails({
+                          ...companyDetails,
+                          industry: nextIndustry,
+                        });
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "10px 14px",
+                        borderRadius: "var(--radius)",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-background)",
+                      }}
+                    >
+                      <option value="" disabled>
+                        Select industry
+                      </option>
+                      {industryOptions.map((industry) => (
+                        <option key={industry} value={industry}>
+                          {industry}
+                        </option>
+                      ))}
+                      <option value="Custom">Custom</option>
+                    </select>
+                  ) : (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <input
+                        type="text"
+                        placeholder="Enter custom industry"
+                        value={companyDetails.industry}
+                        onChange={(e) =>
+                          setCompanyDetails({
+                            ...companyDetails,
+                            industry: e.target.value,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "var(--radius)",
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-background)",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomIndustry(false);
+                          setCompanyDetails({
+                            ...companyDetails,
+                            industry: "",
+                          });
+                        }}
+                        style={{
+                          justifySelf: "start",
+                          padding: "8px 12px",
+                          borderRadius: "var(--radius)",
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-background)",
+                          cursor: "pointer",
+                          fontSize: "var(--font-size-sm)",
+                        }}
+                      >
+                        Choose a preset industry
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label
@@ -1207,23 +1621,44 @@ export default function ProfilePage() {
                   >
                     Website
                   </label>
-                  <input
-                    type="url"
-                    value={companyDetails.website}
-                    onChange={(e) =>
-                      setCompanyDetails({
-                        ...companyDetails,
-                        website: e.target.value,
-                      })
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "10px 14px",
-                      borderRadius: "var(--radius)",
-                      border: "1px solid var(--color-border)",
-                      background: "var(--color-background)",
-                    }}
-                  />
+                  <div style={{ display: "flex", alignItems: "stretch" }}>
+                    <span
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: "var(--radius) 0 0 var(--radius)",
+                        border: "1px solid var(--color-border)",
+                        borderRight: 0,
+                        background: "var(--color-surface)",
+                        color: "var(--color-muted)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      https://
+                    </span>
+                    <input
+                      type="text"
+                      value={stripHttpsPrefix(companyDetails.website)}
+                      onChange={(e) =>
+                        setCompanyDetails({
+                          ...companyDetails,
+                          website: stripHttpsPrefix(e.target.value),
+                        })
+                      }
+                      onBlur={() =>
+                        setCompanyDetails((prev) => ({
+                          ...prev,
+                          website: stripHttpsPrefix(prev.website),
+                        }))
+                      }
+                      style={{
+                        width: "100%",
+                        padding: "10px 14px",
+                        borderRadius: "0 var(--radius) var(--radius) 0",
+                        border: "1px solid var(--color-border)",
+                        background: "var(--color-background)",
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -1284,6 +1719,51 @@ export default function ProfilePage() {
                     {companyDetails.location || "-"}
                   </div>
                 </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "var(--font-size-sm)",
+                      color: "var(--color-muted)",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Legal Name
+                  </div>
+                  <div style={{ fontWeight: 500 }}>
+                    {companyDetails.legal_name || "-"}
+                  </div>
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "var(--font-size-sm)",
+                      color: "var(--color-muted)",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Company Size
+                  </div>
+                  <div style={{ fontWeight: 500 }}>
+                    {companyDetails.size || "-"}
+                  </div>
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <div
+                    style={{
+                      fontSize: "var(--font-size-sm)",
+                      color: "var(--color-muted)",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Primary Contact
+                  </div>
+                  <div style={{ fontWeight: 500 }}>
+                    {companyDetails.primary_contact?.name || "-"}{" "}
+                    {companyDetails.primary_contact?.email
+                      ? `· ${companyDetails.primary_contact.email}`
+                      : ""}
+                  </div>
+                </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <div
                     style={{
@@ -1294,20 +1774,34 @@ export default function ProfilePage() {
                   >
                     Website
                   </div>
-                  <a
-                    href={companyDetails.website}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      fontWeight: 600,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      color: "var(--color-primary)",
-                    }}
-                  >
-                    <FiLink /> {companyDetails.website || "No website added"}
-                  </a>
+                  {companyDetails.website ? (
+                    <a
+                      href={companyDetails.website}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        fontWeight: 600,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        color: "var(--color-primary)",
+                      }}
+                    >
+                      <FiLink /> {companyDetails.website}
+                    </a>
+                  ) : (
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        color: "var(--color-muted)",
+                      }}
+                    >
+                      <FiLink /> No website added
+                    </span>
+                  )}
                 </div>
               </div>
             )}
