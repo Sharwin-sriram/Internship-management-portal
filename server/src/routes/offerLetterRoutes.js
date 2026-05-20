@@ -8,6 +8,7 @@ import {
   getAllOfferLetters,
   acceptOfferLetter,
   rejectOfferLetter,
+  downloadOfferLetterPDF,
 } from '../controllers/offerLetterController.js';
 
 const router = express.Router();
@@ -24,6 +25,9 @@ router.route('/:id/generate-pdf')
 
 router.route('/:id/send')
   .post(authorize('coordinator', 'admin', 'company'), sendOfferLetter);
+
+router.route('/:id/download')
+  .get(downloadOfferLetterPDF);
 
 // Routes accessible by relevant parties (auth handled in controller for private access)
 router.route('/')
