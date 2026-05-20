@@ -286,6 +286,58 @@ class EmailService {
     }
   }
 
+  async sendOfferLetter(to, payload) {
+    if (!to) {
+      logger.warn("Offer letter email skipped: no recipient");
+      return { success: false };
+    }
+
+    const name = payload?.name || "Candidate";
+    const company =
+      payload?.offerDetails?.company || payload?.companyName || "Company";
+    const position =
+      payload?.offerDetails?.position || payload?.position || "Intern";
+    const salary = payload?.offerDetails?.salary;
+    const expiryDate = payload?.expiryDate
+      ? new Date(payload.expiryDate).toLocaleDateString("en-IN")
+      : null;
+    const offerLetterUrl = payload?.offerLetterUrl;
+
+    const mailOptions = {
+      from: EMAIL_FROM,
+      to,
+      subject: `Offer Letter - ${company}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto;">
+          <h2 style="color: #2297FA;">Congratulations, ${name}!</h2>
+          <p>We are pleased to share your internship offer letter.</p>
+          <ul>
+            <li><strong>Company:</strong> ${company}</li>
+            <li><strong>Position:</strong> ${position}</li>
+            ${salary ? `<li><strong>Stipend:</strong> ₹${salary} per month</li>` : ""}
+            ${expiryDate ? `<li><strong>Offer valid till:</strong> ${expiryDate}</li>` : ""}
+          </ul>
+          ${
+            offerLetterUrl
+              ? `<p><a href="${offerLetterUrl}" style="display:inline-block;padding:10px 16px;background:#2297FA;color:#fff;text-decoration:none;border-radius:8px;">View Offer Letter</a></p>`
+              : ""
+          }
+          <p>Please review and respond within the validity period.</p>
+        </div>
+      `,
+      text: `Congratulations ${name}! You have received an internship offer from ${company} for ${position}.${salary ? ` Stipend: INR ${salary} per month.` : ""}${expiryDate ? ` Offer valid till ${expiryDate}.` : ""}${offerLetterUrl ? ` View letter: ${offerLetterUrl}` : ""}`,
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`Offer letter email sent to ${to}`);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      logger.error(`Offer letter email failed: ${error.message}`);
+      throw new Error("Failed to send offer letter email");
+    }
+  }
+
   async verifyConnection() {
     try {
       // Skip verification if email credentials are not configured
