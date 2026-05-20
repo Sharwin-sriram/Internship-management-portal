@@ -31,3 +31,18 @@ export async function fetchMe() {
 export async function logoutRequest() {
   await api.get("/auth/logout");
 }
+
+export async function requestEmailVerification() {
+  const { data } = await api.post<{ success: boolean; message?: string }>(
+    "/auth/verify-email/request",
+  );
+  return data;
+}
+
+export async function confirmEmailVerification(token: string) {
+  const { data } = await api.get<{ success: boolean; message?: string }>(
+    "/auth/verify-email",
+    { params: { token } },
+  );
+  return data;
+}
