@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import { AuthUser, getStoredUser, saveAuth, clearAuth } from '../lib/auth';
 import * as authApi from '../services/authApi';
 
@@ -40,7 +41,40 @@ function normalizeUser(raw: { id?: string; _id?: string; name: string; email: st
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { data: session, status } = useSession();
 
+  // Sync NextAuth session
+  useEffect(() => {
+    if (status === 'loading') return;
+
+    if (session && (session as any).backendToken && (session as any).backendUser) {
+      const backendUser = (session as any).backendUser;
+      const backendToken = (session as any).backendToken;
+
+      const authUser: AuthUser = {
+        id: String(backendUser.id || backendUser._id),
+        name: backendUser.name,
+        email: backendUser.email,
+        role: backendUser.role,
+        avatar: backendUser.avatar,
+        token: backendToken,
+      };
+
+      const stored = getStoredUser();
+      if (!stored || stored.token !== backendToken) {
+        saveAuth(authUser);
+        setUser(authUser);
+      }
+      setIsLoading(false);
+    } else if (status === 'unauthenticated') {
+      const stored = getStoredUser();
+      if (!stored?.token) {
+        setIsLoading(false);
+      }
+    }
+  }, [session, status]);
+
+  // Sync legacy localStorage session
   useEffect(() => {
     const stored = getStoredUser();
     if (stored?.token) {
@@ -61,9 +95,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       });
     } else {
-      setIsLoading(false);
+      if (status !== 'loading' && !session) {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [status, session]);
+
+  // Redirect logged-in users away from auth pages
+  useEffect(() => {
+    if (user && typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path === '/login' || path === '/register') {
+        let target = '/dashboard';
+        if (user.role === 'company') target = '/dashboard/company';
+        else if (user.role === 'admin') target = '/dashboard/admin';
+        window.location.href = target;
+      }
+    }
+  }, [user]);
 
   async function login(email: string, password: string, role: AuthUser['role'] = 'student'): Promise<string | null> {
     try {
@@ -93,6 +142,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     clearAuth();
     setUser(null);
+    try {
+      await signOut({ redirect: false });
+    } catch {
+      /* ignore */
+    }
   }
 
   async function refreshUser() {
