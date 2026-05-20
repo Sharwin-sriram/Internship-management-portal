@@ -19,6 +19,9 @@ import exportRoutes from "./routes/exportRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import jobApplicationRoutes from "./routes/jobApplicationRoutes.js";
+import internshipRoutes from "./routes/internshipRoutes.js";
+import oauthRoutes from "./routes/oauthRoutes.js";
+import { configurePassport } from "./config/passport.js";
 import {
   startTokenCleanup,
   startInterviewReminderScheduler,
@@ -39,6 +42,9 @@ const PORT = envConfig.PORT || process.env.PORT;
 
 // Connect to Database
 connectDB();
+
+// OAuth strategies (Google, GitHub)
+configurePassport();
 
 // Middleware
 app.use(cors());
@@ -64,6 +70,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/oauth", oauthRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/password-reset", passwordResetRoutes);
 app.use("/api/profile", profileRoutes);
@@ -76,6 +83,7 @@ app.use("/api/exports", exportRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/job-applications", jobApplicationRoutes);
+app.use("/api/internships", internshipRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
