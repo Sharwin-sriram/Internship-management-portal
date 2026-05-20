@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { getJson, putJson } from "../../lib/api";
+import { getErrorMessage } from "../../lib/axios";
+import * as authApi from "../../services/authApi";
 import Button from "../../components/ui/Button";
 import ResumeSection from "../../components/student/ResumeSection";
 import ProficiencyBar from "../../components/ui/ProficiencyBar";
@@ -21,7 +23,10 @@ import {
   FiX,
   FiChevronRight,
   FiCamera,
+  FiCheckCircle,
 } from "react-icons/fi";
+import { SiGithub } from "react-icons/si";
+import { FaLinkedin } from "react-icons/fa";
 
 type UserProfile = {
   name: string;
@@ -39,6 +44,8 @@ type StudentProfile = {
   skillProficiencies?: Record<string, number>;
   projects?: ProjectEntry[];
   placement_eligible: boolean;
+  linkedin_url?: string;
+  github_url?: string;
 };
 
 type ProjectEntry = {
@@ -88,6 +95,18 @@ const ensureHttpsPrefix = (value: string) => {
 
 const stripHttpsPrefix = (value: string) => value.replace(/^https?:\/\//i, "");
 
+const studentSocialBtn: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "8px 14px",
+  borderRadius: "var(--radius)",
+  fontSize: "var(--font-size-sm)",
+  fontWeight: 600,
+  textDecoration: "none",
+  transition: "opacity 0.15s, transform 0.15s",
+};
+
 export default function ProfilePage() {
   const { user, isLoading: authLoading, refreshUser } = useAuth();
   const router = useRouter();
@@ -96,6 +115,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [verifySending, setVerifySending] = useState(false);
+  const [verifyHint, setVerifyHint] = useState("");
 
   // Form State
   const [userName, setUserName] = useState("");
@@ -109,6 +130,8 @@ export default function ProfilePage() {
     graduation_year: new Date().getFullYear(),
     skills: [],
     placement_eligible: true,
+    linkedin_url: "",
+    github_url: "",
   });
   type SkillEntry = { name: string; proficiency: number };
   const [skillEntries, setSkillEntries] = useState<SkillEntry[]>([]);
@@ -275,6 +298,26 @@ export default function ProfilePage() {
     }
   };
 
+  const handleRequestStudentEmailVerification = async () => {
+    setVerifyHint("");
+    setVerifySending(true);
+    try {
+      const res = await authApi.requestEmailVerification();
+      if (res.success) {
+        setVerifyHint(
+          res.message ||
+            "Check your inbox for the verification link. It expires in 24 hours.",
+        );
+      } else {
+        setVerifyHint(res.message || "Could not send verification email.");
+      }
+    } catch (err) {
+      setVerifyHint(getErrorMessage(err, "Could not send verification email."));
+    } finally {
+      setVerifySending(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -288,6 +331,8 @@ export default function ProfilePage() {
       if (user?.role === "student") {
         payload.studentDetails = {
           ...studentDetails,
+          linkedin_url: ensureHttpsPrefix(studentDetails.linkedin_url || ""),
+          github_url: ensureHttpsPrefix(studentDetails.github_url || ""),
           skills: skillEntries.map((s) => s.name),
           projects: projectEntries
             .filter((project) => project.title.trim() || project.desc.trim())
@@ -316,7 +361,7 @@ export default function ProfilePage() {
           office_locations: companyDetails.office_locations,
         };
 
-        res = await putJson<{ success: boolean; data: any }>(
+        res = await putJson<{ success: boolean; data: any; message?: string }>(
           "/companies/me",
           companyPayload,
         );
@@ -564,25 +609,137 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--space-md)",
-              color: "var(--color-muted)",
-              marginBottom: "var(--space-lg)",
-            }}
-          >
+          <div style={{ marginBottom: "var(--space-lg)" }}>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "var(--space-xs)",
+                gap: "var(--space-md)",
+                color: "var(--color-muted)",
+                flexWrap: "wrap",
               }}
             >
-              <FiMail /> {user.email}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-xs)",
+                }}
+              >
+                <FiMail /> {user.email}
+              </div>
+              {user.role === "student" && user.emailVerified && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    background: "rgba(34, 197, 94, 0.12)",
+                    color: "#15803d",
+                    fontSize: "var(--font-size-xs)",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                  title="This address was confirmed via email"
+                >
+                  <FiCheckCircle size={14} aria-hidden />
+                  Verified student
+                </span>
+              )}
+              {user.role === "student" &&
+                (studentDetails.linkedin_url?.trim() ? (
+                  <a
+                    href={ensureHttpsPrefix(studentDetails.linkedin_url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      ...studentSocialBtn,
+                      background: "#0A66C2",
+                      color: "#fff",
+                    }}
+                    title="Open LinkedIn profile"
+                  >
+                    <FaLinkedin size={18} aria-hidden />
+                    LinkedIn
+                  </a>
+                ) : (
+                  <span
+                    style={{
+                      ...studentSocialBtn,
+                      background: "var(--color-background)",
+                      color: "var(--color-muted)",
+                      border: "1px solid var(--color-border)",
+                      cursor: "default",
+                      opacity: 0.75,
+                    }}
+                    title="Add your LinkedIn URL in Edit Profile (Online profiles)"
+                  >
+                    <FaLinkedin size={18} aria-hidden />
+                    LinkedIn
+                  </span>
+                ))}
+              {user.role === "student" &&
+                (studentDetails.github_url?.trim() ? (
+                  <a
+                    href={ensureHttpsPrefix(studentDetails.github_url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      ...studentSocialBtn,
+                      background: "#24292f",
+                      color: "#fff",
+                    }}
+                    title="Open GitHub profile"
+                  >
+                    <SiGithub size={18} aria-hidden />
+                    GitHub
+                  </a>
+                ) : (
+                  <span
+                    style={{
+                      ...studentSocialBtn,
+                      background: "var(--color-background)",
+                      color: "var(--color-muted)",
+                      border: "1px solid var(--color-border)",
+                      cursor: "default",
+                      opacity: 0.75,
+                    }}
+                    title="Add your GitHub URL in Edit Profile (Online profiles)"
+                  >
+                    <SiGithub size={18} aria-hidden />
+                    GitHub
+                  </span>
+                ))}
             </div>
+            {user.role === "student" && verifyHint ? (
+              <p
+                style={{
+                  fontSize: "var(--font-size-sm)",
+                  color: "var(--color-muted)",
+                  margin: "var(--space-sm) 0 0 0",
+                }}
+              >
+                {verifyHint}
+              </p>
+            ) : null}
           </div>
+
+          {user.role === "student" && !user.emailVerified && (
+            <div style={{ marginBottom: "var(--space-lg)" }}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                loading={verifySending}
+                onClick={handleRequestStudentEmailVerification}
+              >
+                Verify student email
+              </Button>
+            </div>
+          )}
 
           {editing && (
             <div style={{ marginBottom: "var(--space-lg)" }}>
@@ -769,6 +926,111 @@ export default function ProfilePage() {
                       background: "var(--color-background)",
                     }}
                   />
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <h4
+                    style={{
+                      fontSize: "var(--font-size-base)",
+                      fontWeight: 700,
+                      margin: "var(--space-sm) 0 var(--space-xs)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <FiLink /> Online profiles
+                  </h4>
+                  <p
+                    style={{
+                      fontSize: "var(--font-size-xs)",
+                      color: "var(--color-muted)",
+                      marginBottom: "var(--space-sm)",
+                    }}
+                  >
+                    Optional — paste your LinkedIn and GitHub URLs (https is
+                    added if you omit it).
+                  </p>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(260px, 1fr))",
+                      gap: "var(--space-md)",
+                    }}
+                  >
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "var(--font-size-sm)",
+                          fontWeight: 600,
+                          marginBottom: 8,
+                        }}
+                      >
+                        LinkedIn
+                      </label>
+                      <input
+                        type="url"
+                        inputMode="url"
+                        placeholder="linkedin.com/in/your-profile"
+                        value={stripHttpsPrefix(
+                          studentDetails.linkedin_url || "",
+                        )}
+                        onChange={(e) =>
+                          setStudentDetails({
+                            ...studentDetails,
+                            linkedin_url:
+                              e.target.value.trim() === ""
+                                ? ""
+                                : ensureHttpsPrefix(e.target.value),
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "var(--radius)",
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-background)",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "var(--font-size-sm)",
+                          fontWeight: 600,
+                          marginBottom: 8,
+                        }}
+                      >
+                        GitHub
+                      </label>
+                      <input
+                        type="url"
+                        inputMode="url"
+                        placeholder="github.com/username"
+                        value={stripHttpsPrefix(
+                          studentDetails.github_url || "",
+                        )}
+                        onChange={(e) =>
+                          setStudentDetails({
+                            ...studentDetails,
+                            github_url:
+                              e.target.value.trim() === ""
+                                ? ""
+                                : ensureHttpsPrefix(e.target.value),
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "var(--radius)",
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-background)",
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <label
