@@ -48,6 +48,10 @@ export const postAuthJson = <T = unknown>(path: string, data: unknown) =>
 export const getJson = <T = unknown>(path: string) =>
   request<T>('GET', path, undefined, true);
 
+/** GET without Authorization header (public endpoints). */
+export const getPublicJson = <T = unknown>(path: string) =>
+  request<T>('GET', path, undefined, false);
+
 export const putJson = <T = unknown>(path: string, data: unknown) =>
   request<T>('PUT', path, data, true);
 
