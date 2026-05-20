@@ -21,6 +21,8 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import jobApplicationRoutes from "./routes/jobApplicationRoutes.js";
 import internshipRoutes from "./routes/internshipRoutes.js";
 import industryRoutes from "./routes/industryRoutes.js";
+import oauthRoutes from "./routes/oauthRoutes.js";
+import { configurePassport } from "./config/passport.js";
 import {
   startTokenCleanup,
   startInterviewReminderScheduler,
@@ -30,18 +32,23 @@ import emailService from "./services/emailService.js";
 import logger from "./utils/logger.js";
 import envConfig from "./config/env.js";
 import { seedDefaultIndustries } from "./controllers/industryController.js";
+import { protect } from "./middlewares/auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from the correct path
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
-const PORT = envConfig.PORT || process.env.PORT;
+const BASE_PORT = Number(envConfig.PORT || process.env.PORT || 9933);
+const MAX_PORT_RETRIES = 10;
 
 // Connect to Database
 connectDB();
+
+// OAuth strategies (Google, GitHub)
+configurePassport();
 
 // Middleware
 app.use(cors());
@@ -63,12 +70,13 @@ app.use("/exports", express.static(path.join(__dirname, "../exports")));
 
 // Debug middleware
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  logger.info(`${req.method} ${req.path}`);
   next();
 });
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/oauth", oauthRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/password-reset", passwordResetRoutes);
 app.use("/api/profile", profileRoutes);
@@ -140,6 +148,44 @@ app.get("/api/test", (req, res) => {
   });
 });
 
+// Test data creation endpoint (for development only)
+app.post("/api/create-test-data", async (req, res) => {
+  try {
+    const { createTestData } = await import("./utils/createTestData.js");
+    const result = await createTestData();
+    res.json({
+      success: true,
+      message: "Test data created successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Create test data error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create test data",
+    });
+  }
+});
+
+// Create test data for current user (authenticated)
+app.post("/api/create-test-data-for-me", protect, async (req, res) => {
+  try {
+    const { createTestDataForUser } = await import("./utils/createTestData.js");
+    const result = await createTestDataForUser(req.user);
+    res.json({
+      success: true,
+      message: "Test data created for current user",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Create test data for user error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create test data for user",
+    });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res
@@ -159,6 +205,40 @@ app.use((err, req, res, next) => {
 
 // HTTP server (required for Socket.IO)
 const httpServer = http.createServer(app);
+let started = false;
+
+const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
+  const onError = (err) => {
+    if (err.code === "EADDRINUSE" && retriesLeft > 0) {
+      const nextPort = port + 1;
+      logger.error(
+        `Port ${port} is already in use. Retrying on port ${nextPort}...`,
+      );
+      httpServer.off("error", onError);
+      return startServer(nextPort, retriesLeft - 1);
+    }
+
+    logger.error(`Server failed to start: ${err.message}`);
+    process.exit(1);
+  };
+
+  httpServer.once("error", onError);
+  httpServer.listen(port, async () => {
+    httpServer.off("error", onError);
+    console.log(`http://localhost:${port}`);
+    console.log(
+      `[INFO] ${new Date().toISOString()}: Server running in ${envConfig.NODE_ENV || "development"} mode on port ${port}`,
+    );
+
+    if (!started) {
+      started = true;
+      await initSocket(httpServer);
+      await emailService.verifyConnection();
+      startTokenCleanup();
+      startInterviewReminderScheduler();
+    }
+  });
+};
 
 // Start server
 httpServer.listen(PORT, async () => {

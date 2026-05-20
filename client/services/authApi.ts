@@ -29,7 +29,12 @@ export async function fetchMe() {
 }
 
 export async function logoutRequest() {
-  await api.get("/auth/logout");
+  await api.post("/auth/logout");
+}
+
+export async function exchangeOAuthCode(code: string) {
+  const { data } = await api.post<LoginResult>("/oauth/exchange", { code });
+  return data;
 }
 
 export async function requestEmailVerification() {

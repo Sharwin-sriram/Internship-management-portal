@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Button from "../../../../components/ui/Button";
@@ -22,6 +22,7 @@ type CompanyApplication = {
 type CompanyInternshipOption = { _id: string; title: string };
 
 export default function CompanyApplicantsPage() {
+function CompanyApplicantsContent() {
   useProtectedRoute(["company"]);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -390,5 +391,19 @@ export default function CompanyApplicantsPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function CompanyApplicantsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 0", textAlign: "center", color: "#64748b" }}>
+          Loading applications…
+        </div>
+      }
+    >
+      <CompanyApplicantsContent />
+    </Suspense>
   );
 }
