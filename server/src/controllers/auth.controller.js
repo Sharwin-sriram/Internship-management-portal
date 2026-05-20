@@ -109,6 +109,9 @@ export const changeEmail = async (req, res) => {
 
     const previousEmail = user.email;
     user.email = newEmail.toLowerCase();
+    user.emailVerified = false;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpire = undefined;
     await user.save();
 
     await logAuthEvent({

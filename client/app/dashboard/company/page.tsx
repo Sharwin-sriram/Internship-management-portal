@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../../context/AuthContext";
 import { getJson } from "../../../lib/api";
+import { postAuthJson, putJson, deleteJson } from "../../../lib/api";
+import { useToast } from "../../../context/ToastContext";
 
 interface Recruiter {
   name: string;
@@ -92,6 +94,7 @@ const applicationQuickLinks = [
 export default function CompanyDashboardPage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
+  const { showToast } = useToast();
 
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -99,6 +102,22 @@ export default function CompanyDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showProfilePrompt, setShowProfilePrompt] = useState(false);
+
+  const [internships, setInternships] = useState<any[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    skills: "",
+    stipend_min: "",
+    stipend_max: "",
+    duration: "",
+    location: "remote",
+    deadline: "",
+    status: "open",
+  });
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const profilePromptKey = profile?._id
     ? `company_profile_prompt_dismissed_${profile._id}`
@@ -145,6 +164,17 @@ export default function CompanyDashboardPage() {
     };
 
     load();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || user.role !== "company") return;
+    const loadInternships = async () => {
+      const res = await getJson<{ success: boolean; data: any[] }>(
+        "/internships/me",
+      );
+      if (res.ok && res.body?.success) setInternships(res.body.data || []);
+    };
+    loadInternships();
   }, [user]);
 
   const approvalBadge = useMemo(() => {
@@ -256,6 +286,30 @@ export default function CompanyDashboardPage() {
       </div>
     );
   }
+
+  const getFieldStyle = (fieldName: string) => ({
+    width: "100%",
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: `1px solid ${focusedField === fieldName ? "#2563eb" : "#cbd5e1"}`,
+    background: "#fff",
+    fontSize: "0.95rem",
+    color: "#0f172a",
+    outline: "none",
+    boxShadow: focusedField === fieldName ? "0 0 0 4px rgba(37,99,235,0.08)" : "none",
+    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+    fontFamily: "inherit",
+  });
+
+  const labelStyle = {
+    display: "block",
+    fontSize: "0.78rem",
+    fontWeight: 600,
+    color: "#64748b",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.05em",
+    marginBottom: "6px",
+  };
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: "1.5rem 0 2rem" }}>
@@ -370,6 +424,506 @@ export default function CompanyDashboardPage() {
             >
               Skip for now
             </button>
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: 16,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard/company/post")}
+          disabled={metrics?.approvalStatus !== "approved"}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "none",
+            background:
+              metrics?.approvalStatus === "approved" ? "#059669" : "#94a3b8",
+            color: "#fff",
+            fontWeight: 700,
+            cursor:
+              metrics?.approvalStatus === "approved"
+                ? "pointer"
+                : "not-allowed",
+          }}
+        >
+          Create Internship
+        </button>
+      </div>
+
+
+
+      {/* Company Postings */}
+      <section style={{ marginBottom: "2.5rem" }}>
+        <h2
+          style={{
+            fontSize: "1.25rem",
+            fontWeight: 800,
+            color: "#0f172a",
+            margin: "0 0 1rem",
+          }}
+        >
+          Postings
+        </h2>
+        <div style={{ display: "grid", gap: 12 }}>
+          {internships.length === 0 && (
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                background: "#fff",
+                border: "1px solid #e6eef8",
+              }}
+            >
+              No postings yet.
+            </div>
+          )}
+          {internships.map((i) => (
+            <div
+              key={i._id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: 14,
+                borderRadius: 12,
+                background: "#fff",
+                border: "1px solid #e6eef8",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "1rem" }}>
+                  {i.title}
+                </div>
+                <div style={{ color: "#64748b", fontSize: "0.9rem" }}>
+                  {i.description?.slice(0, 140)}
+                  {i.description?.length > 140 ? "..." : ""}
+                </div>
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ fontSize: "0.85rem", color: "#334155" }}>
+                    📍 {i.location}
+                  </div>
+                  <div style={{ fontSize: "0.85rem", color: "#334155" }}>
+                    💸 {i.stipend_min} - {i.stipend_max}
+                  </div>
+                  <div style={{ fontSize: "0.85rem", color: "#334155" }}>
+                    ⏳ {i.duration}
+                  </div>
+                  <div style={{ fontSize: "0.85rem", color: "#334155" }}>
+                    🗓️ {new Date(i.deadline).toLocaleDateString()}
+                  </div>
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  {(i.skills_required || []).slice(0, 6).map((s: string) => (
+                    <span
+                      key={s}
+                      style={{
+                        marginRight: 6,
+                        fontSize: "0.8rem",
+                        color: "#475569",
+                      }}
+                    >
+                      #{s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(i._id);
+                    setEditForm({
+                      title: i.title || "",
+                      description: i.description || "",
+                      skills: (i.skills_required || []).join(", "),
+                      stipend_min: String(i.stipend_min || ""),
+                      stipend_max: String(i.stipend_max || ""),
+                      duration: i.duration || "",
+                      location: i.location || "remote",
+                      deadline: i.deadline
+                        ? new Date(i.deadline).toISOString().slice(0, 10)
+                        : "",
+                      status: i.status || "open",
+                    });
+                    setShowEditModal(true);
+                  }}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "1px solid #c7d2fe",
+                    background: "#fff",
+                    cursor: "pointer",
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (
+                      !confirm("Delete this internship? This cannot be undone.")
+                    )
+                      return;
+                    const res = await deleteJson(`/internships/${i._id}`);
+                    if (res.ok && res.body?.success) {
+                      setInternships((prev) =>
+                        prev.filter((x) => x._id !== i._id),
+                      );
+                      showToast("Internship deleted successfully", "success");
+                    } else {
+                      showToast("Failed to delete internship", "error");
+                    }
+                  }}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: "#ef4444",
+                    color: "#fff",
+                    cursor: "pointer",
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {showEditModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15,23,42,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 60,
+            padding: 18,
+          }}
+        >
+          <div
+            style={{
+              width: 640,
+              maxWidth: "100%",
+              maxHeight: "80vh",
+              background: "#fff",
+              borderRadius: 20,
+              padding: "28px",
+              boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+              position: "relative",
+              border: "1px solid rgba(148,174,254,0.15)",
+              animation: "modalFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <style>{`
+              @keyframes modalFadeIn {
+                from {
+                  opacity: 0;
+                  transform: scale(0.96) translateY(8px);
+                }
+                to {
+                  opacity: 1;
+                  transform: scale(1) translateY(0);
+                }
+              }
+            `}</style>
+            
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", flexShrink: 0 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.35rem", fontWeight: 800, color: "#0f172a" }}>Edit Internship</h3>
+                <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#64748b" }}>Update posting details and candidate requirements.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingId(null);
+                }}
+                style={{
+                  border: "none",
+                  background: "#f1f5f9",
+                  color: "#64748b",
+                  width: 30,
+                  height: 30,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  fontSize: "1rem",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#e2e8f0";
+                  e.currentTarget.style.color = "#0f172a";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#f1f5f9";
+                  e.currentTarget.style.color = "#64748b";
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto", paddingRight: "8px", marginBottom: "4px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px", paddingBottom: "8px" }}>
+                <div style={{ gridColumn: "span 2" }}>
+                  <label style={labelStyle}>Internship Title</label>
+                  <input
+                    placeholder="e.g. Backend Developer"
+                    value={editForm.title}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, title: e.target.value })
+                    }
+                    onFocus={() => setFocusedField("title")}
+                    onBlur={() => setFocusedField(null)}
+                    style={getFieldStyle("title")}
+                  />
+                </div>
+
+                <div style={{ gridColumn: "span 2" }}>
+                  <label style={labelStyle}>Job Description</label>
+                  <textarea
+                    placeholder="Describe role, responsibilities, and qualifications..."
+                    value={editForm.description}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, description: e.target.value })
+                    }
+                    onFocus={() => setFocusedField("description")}
+                    onBlur={() => setFocusedField(null)}
+                    style={{ ...getFieldStyle("description"), minHeight: 110, resize: "vertical" }}
+                  />
+                </div>
+
+                <div style={{ gridColumn: "span 2" }}>
+                  <label style={labelStyle}>Required Skills (comma separated)</label>
+                  <input
+                    placeholder="e.g. Node.js, Java, Ruby on rails"
+                    value={editForm.skills}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, skills: e.target.value })
+                    }
+                    onFocus={() => setFocusedField("skills")}
+                    onBlur={() => setFocusedField(null)}
+                    style={getFieldStyle("skills")}
+                  />
+                </div>
+
+                <div style={{ gridColumn: "span 1" }}>
+                  <label style={labelStyle}>Minimum Stipend</label>
+                  <input
+                    placeholder="e.g. 10000"
+                    value={editForm.stipend_min}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, stipend_min: e.target.value })
+                    }
+                    onFocus={() => setFocusedField("stipend_min")}
+                    onBlur={() => setFocusedField(null)}
+                    style={getFieldStyle("stipend_min")}
+                  />
+                </div>
+
+                <div style={{ gridColumn: "span 1" }}>
+                  <label style={labelStyle}>Maximum Stipend</label>
+                  <input
+                    placeholder="e.g. 25000"
+                    value={editForm.stipend_max}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, stipend_max: e.target.value })
+                    }
+                    onFocus={() => setFocusedField("stipend_max")}
+                    onBlur={() => setFocusedField(null)}
+                    style={getFieldStyle("stipend_max")}
+                  />
+                </div>
+
+                <div style={{ gridColumn: "span 1" }}>
+                  <label style={labelStyle}>Duration</label>
+                  <input
+                    placeholder="e.g. 6 months"
+                    value={editForm.duration}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, duration: e.target.value })
+                    }
+                    onFocus={() => setFocusedField("duration")}
+                    onBlur={() => setFocusedField(null)}
+                    style={getFieldStyle("duration")}
+                  />
+                </div>
+
+                <div style={{ gridColumn: "span 1" }}>
+                  <label style={labelStyle}>Location Type</label>
+                  <select
+                    value={editForm.location}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, location: e.target.value })
+                    }
+                    onFocus={() => setFocusedField("location")}
+                    onBlur={() => setFocusedField(null)}
+                    style={getFieldStyle("location")}
+                  >
+                    <option value="remote">Remote</option>
+                    <option value="on-site">On-site</option>
+                    <option value="hybrid">Hybrid</option>
+                  </select>
+                </div>
+
+                <div style={{ gridColumn: "span 1" }}>
+                  <label style={labelStyle}>Application Deadline</label>
+                  <input
+                    type="date"
+                    value={editForm.deadline}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, deadline: e.target.value })
+                    }
+                    onFocus={() => setFocusedField("deadline")}
+                    onBlur={() => setFocusedField(null)}
+                    style={getFieldStyle("deadline")}
+                  />
+                </div>
+
+                <div style={{ gridColumn: "span 1" }}>
+                  <label style={labelStyle}>Status</label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, status: e.target.value })
+                    }
+                    onFocus={() => setFocusedField("status")}
+                    onBlur={() => setFocusedField(null)}
+                    style={getFieldStyle("status")}
+                  >
+                    <option value="open">Open</option>
+                    <option value="draft">Draft</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                justifyContent: "flex-end",
+                marginTop: "16px",
+                borderTop: "1px solid #f1f5f9",
+                paddingTop: "18px",
+                flexShrink: 0,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingId(null);
+                }}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 10,
+                  border: "1px solid #e2e8f0",
+                  background: "#fff",
+                  color: "#475569",
+                  fontWeight: 600,
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#f8fafc";
+                  e.currentTarget.style.borderColor = "#cbd5e1";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#fff";
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!editingId) return;
+                  try {
+                    const skillsArr = editForm.skills
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    const payload = {
+                      title: editForm.title,
+                      description: editForm.description,
+                      skills_required: skillsArr,
+                      stipend_min: Number(editForm.stipend_min || 0),
+                      stipend_max: Number(editForm.stipend_max || 0),
+                      duration: editForm.duration,
+                      location: editForm.location,
+                      deadline: editForm.deadline,
+                      status: editForm.status,
+                    };
+                    const res = await putJson(
+                      `/internships/${editingId}`,
+                      payload,
+                    );
+                    if (res.ok && res.body?.success) {
+                      setInternships((prev) =>
+                        prev.map((x) =>
+                          x._id === editingId ? res.body.data : x,
+                        ),
+                      );
+                      setShowEditModal(false);
+                      setEditingId(null);
+                      showToast("Internship updated successfully", "success");
+                    } else {
+                      showToast("Failed to update internship", "error");
+                    }
+                  } catch (err) {
+                    showToast("Error updating internship", "error");
+                  }
+                }}
+                style={{
+                  padding: "10px 20px",
+                  background: "#2563eb",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 10,
+                  fontWeight: 600,
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(37,99,235,0.15)",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#1d4ed8";
+                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(37,99,235,0.25)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#2563eb";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.15)";
+                }}
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
       )}

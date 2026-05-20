@@ -13,6 +13,7 @@ import {
   getCompanyAnalytics,
   getMyShortlistedApplications,
   getMyApplications,
+  getMyApplicationsHistory,
   shortlistMyApplication,
   getRecruiters,
   addRecruiter,
@@ -50,6 +51,12 @@ router.get(
   protect,
   authorize("company"),
   getMyApplications,
+);
+router.get(
+  "/me/applications/history",
+  protect,
+  authorize("company"),
+  getMyApplicationsHistory,
 );
 router.patch(
   "/me/applications/:applicationId/shortlist",

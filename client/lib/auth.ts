@@ -5,6 +5,8 @@ export interface AuthUser {
   role: 'student' | 'company' | 'admin' | 'coordinator' | 'interviewer';
   avatar?: string;
   token?: string;
+  /** Student email verified via magic link (other roles may omit). */
+  emailVerified?: boolean;
 }
 
 const TOKEN_KEY = 'internship_token';

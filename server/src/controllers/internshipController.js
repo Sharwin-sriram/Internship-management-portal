@@ -1,117 +1,17 @@
 import Internship from "../models/Internship.js";
 import Company from "../models/Company.js";
 
-// @desc    Create a new internship posting
-// @route   POST /api/internships
-// @access  Private (Company, Admin, Coordinator)
-export const createInternship = async (req, res) => {
+const getCompanyForUser = async (userId) => Company.findOne({ user: userId });
+
+// @desc List open internships (student explore / public)
+// @route GET /api/internships
+// @access Public
+export const listPublicInternships = async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      stipend_min,
-      stipend_max,
-      deadline,
-      batch_id,
-      status,
-    } = req.body;
-
-    // Validation
-    if (
-      !title ||
-      !description ||
-      stipend_min === undefined ||
-      stipend_max === undefined ||
-      !deadline ||
-      !batch_id
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Title, description, stipend_min, stipend_max, deadline, and batch_id are required fields.",
-      });
-    }
-
-    let companyId;
-
-    if (req.user.role === "company") {
-      const company = await Company.findOne({ user: req.user._id });
-      if (!company) {
-        return res.status(404).json({
-          success: false,
-          message: "Company profile not found for this user.",
-        });
-      }
-      // Check if company is approved to post internships
-      if (company.approval_status !== "approved") {
-        return res.status(403).json({
-          success: false,
-          message: "Your company profile is not approved yet. Postings are disabled.",
-        });
-      }
-      companyId = company._id;
-    } else if (req.user.role === "admin" || req.user.role === "coordinator") {
-      companyId = req.body.company;
-      if (!companyId) {
-        return res.status(400).json({
-          success: false,
-          message: "Company ID is required for admin/coordinator postings.",
-        });
-      }
-    } else {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to create internship postings.",
-      });
-    }
-
-    const internship = new Internship({
-      company: companyId,
-      title,
-      description,
-      stipend_min: Number(stipend_min),
-      stipend_max: Number(stipend_max),
-      deadline: new Date(deadline),
-      batch_id,
-      status: status || "open",
-    });
-
-    await internship.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Internship posted successfully!",
-      data: internship,
-    });
-  } catch (error) {
-    console.error("[InternshipController] Error in createInternship:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Server error while posting internship.",
-    });
-  }
-};
-
-// @desc    Get all internship postings
-// @route   GET /api/internships
-// @access  Public
-export const getInternships = async (req, res) => {
-  try {
-    const { companyId, status, batch_id } = req.query;
-    const query = {};
-
-    if (companyId) {
-      query.company = companyId;
-    }
-    if (status) {
-      query.status = status;
-    }
-    if (batch_id) {
-      query.batch_id = batch_id;
-    }
-
-    const internships = await Internship.find(query)
-      .populate("company", "company_name logo_url website industry")
-      .sort({ createdAt: -1 });
+    const internships = await Internship.find({ status: "open" })
+      .populate("company", "company_name logo_url")
+      .sort({ createdAt: -1 })
+      .lean();
 
     res.status(200).json({
       success: true,
@@ -119,143 +19,215 @@ export const getInternships = async (req, res) => {
       data: internships,
     });
   } catch (error) {
-    console.error("[InternshipController] Error in getInternships:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Server error while fetching internships.",
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Get a single internship posting by ID
-// @route   GET /api/internships/:id
-// @access  Public
-export const getInternshipById = async (req, res) => {
+// @desc Create a new internship
+// @route POST /api/internships
+// @access Company
+export const createInternship = async (req, res) => {
   try {
-    const internship = await Internship.findById(req.params.id).populate(
-      "company",
-      "company_name logo_url website industry description size"
-    );
-
-    if (!internship) {
-      return res.status(404).json({
-        success: false,
-        message: "Internship posting not found.",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: internship,
-    });
-  } catch (error) {
-    console.error("[InternshipController] Error in getInternshipById:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Server error while fetching internship detail.",
-    });
-  }
-};
-
-// @desc    Update an internship posting
-// @route   PUT /api/internships/:id
-// @access  Private (Company, Admin, Coordinator)
-export const updateInternship = async (req, res) => {
-  try {
-    let internship = await Internship.findById(req.params.id);
-
-    if (!internship) {
-      return res.status(404).json({
-        success: false,
-        message: "Internship posting not found.",
-      });
-    }
-
-    // Ownership check for company user
-    if (req.user.role === "company") {
-      const company = await Company.findOne({ user: req.user._id });
-      if (!company || String(internship.company) !== String(company._id)) {
-        return res.status(403).json({
-          success: false,
-          message: "You can only update your own internship postings.",
-        });
-      }
+    const company = await getCompanyForUser(req.user._id);
+    if (!company) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
     }
 
     const {
       title,
       description,
+      skills_required,
       stipend_min,
       stipend_max,
+      duration,
+      location,
       deadline,
       batch_id,
-      status,
     } = req.body;
 
-    const updates = {};
-    if (title !== undefined) updates.title = title;
-    if (description !== undefined) updates.description = description;
-    if (stipend_min !== undefined) updates.stipend_min = Number(stipend_min);
-    if (stipend_max !== undefined) updates.stipend_max = Number(stipend_max);
-    if (deadline !== undefined) updates.deadline = new Date(deadline);
-    if (batch_id !== undefined) updates.batch_id = batch_id;
-    if (status !== undefined) updates.status = status;
+    const min = Number(stipend_min);
+    const max = Number(stipend_max);
+    if (
+      !title?.trim() ||
+      !description?.trim() ||
+      stipend_min === undefined ||
+      stipend_min === null ||
+      stipend_max === undefined ||
+      stipend_max === null ||
+      Number.isNaN(min) ||
+      Number.isNaN(max) ||
+      !deadline
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing required fields." });
+    }
 
-    internship = await Internship.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-      runValidators: true,
+    const internship = new Internship({
+      company: company._id,
+      title,
+      description,
+      skills_required: Array.isArray(skills_required)
+        ? skills_required
+        : skills_required
+          ? String(skills_required)
+              .split(",")
+              .map((s) => s.trim())
+          : [],
+      stipend_min: min,
+      stipend_max: max,
+      duration: duration || "",
+      location: location || "remote",
+      deadline: new Date(deadline),
+      batch_id: batch_id || "all",
+      status: "open",
     });
 
-    res.status(200).json({
-      success: true,
-      message: "Internship updated successfully!",
-      data: internship,
-    });
+    await internship.save();
+
+    res.status(201).json({ success: true, data: internship });
   } catch (error) {
-    console.error("[InternshipController] Error in updateInternship:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Server error while updating internship.",
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Delete an internship posting
-// @route   DELETE /api/internships/:id
-// @access  Private (Company, Admin, Coordinator)
+// @desc Get internships for current company
+// @route GET /api/internships/me
+// @access Company
+export const getMyInternships = async (req, res) => {
+  try {
+    const company = await getCompanyForUser(req.user._id);
+    if (!company)
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
+
+    const internships = await Internship.find({ company: company._id }).sort({
+      createdAt: -1,
+    });
+    res
+      .status(200)
+      .json({ success: true, count: internships.length, data: internships });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc Get internship by id
+// @route GET /api/internships/:id
+// @access Public
+export const getInternshipById = async (req, res) => {
+  try {
+    const internship = await Internship.findById(req.params.id).populate(
+      "company",
+      "company_name logo_url",
+    );
+    if (!internship)
+      return res
+        .status(404)
+        .json({ success: false, message: "Internship not found." });
+    res.status(200).json({ success: true, data: internship });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc Update internship (company must own it)
+// @route PUT /api/internships/:id
+// @access Company
+export const updateInternship = async (req, res) => {
+  try {
+    const company = await getCompanyForUser(req.user._id);
+    if (!company)
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
+
+    const internship = await Internship.findById(req.params.id);
+    if (!internship)
+      return res
+        .status(404)
+        .json({ success: false, message: "Internship not found." });
+    if (String(internship.company) !== String(company._id)) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "You can only modify your own internships.",
+        });
+    }
+
+    const updates = {};
+    const allowed = [
+      "title",
+      "description",
+      "skills_required",
+      "stipend_min",
+      "stipend_max",
+      "duration",
+      "location",
+      "deadline",
+      "status",
+    ];
+    allowed.forEach((k) => {
+      if (req.body[k] !== undefined) updates[k] = req.body[k];
+    });
+
+    if (updates.skills_required && !Array.isArray(updates.skills_required)) {
+      updates.skills_required = String(updates.skills_required)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    if (updates.deadline) updates.deadline = new Date(updates.deadline);
+    if (updates.stipend_min !== undefined)
+      updates.stipend_min = Number(updates.stipend_min);
+    if (updates.stipend_max !== undefined)
+      updates.stipend_max = Number(updates.stipend_max);
+
+    const updated = await Internship.findByIdAndUpdate(
+      internship._id,
+      updates,
+      { new: true, runValidators: true },
+    );
+    res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc Delete internship (company must own it)
+// @route DELETE /api/internships/:id
+// @access Company
 export const deleteInternship = async (req, res) => {
   try {
+    const company = await getCompanyForUser(req.user._id);
+    if (!company)
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
+
     const internship = await Internship.findById(req.params.id);
-
-    if (!internship) {
-      return res.status(404).json({
-        success: false,
-        message: "Internship posting not found.",
-      });
-    }
-
-    // Ownership check for company user
-    if (req.user.role === "company") {
-      const company = await Company.findOne({ user: req.user._id });
-      if (!company || String(internship.company) !== String(company._id)) {
-        return res.status(403).json({
+    if (!internship)
+      return res
+        .status(404)
+        .json({ success: false, message: "Internship not found." });
+    if (String(internship.company) !== String(company._id)) {
+      return res
+        .status(403)
+        .json({
           success: false,
-          message: "You can only delete your own internship postings.",
+          message: "You can only delete your own internships.",
         });
-      }
     }
 
-    await Internship.findByIdAndDelete(req.params.id);
-
-    res.status(200).json({
-      success: true,
-      message: "Internship deleted successfully!",
-    });
+    await internship.deleteOne();
+    res.status(200).json({ success: true, message: "Internship deleted." });
   } catch (error) {
-    console.error("[InternshipController] Error in deleteInternship:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Server error while deleting internship.",
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export default {};

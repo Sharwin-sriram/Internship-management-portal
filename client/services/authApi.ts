@@ -36,3 +36,18 @@ export async function exchangeOAuthCode(code: string) {
   const { data } = await api.post<LoginResult>("/oauth/exchange", { code });
   return data;
 }
+
+export async function requestEmailVerification() {
+  const { data } = await api.post<{ success: boolean; message?: string }>(
+    "/auth/verify-email/request",
+  );
+  return data;
+}
+
+export async function confirmEmailVerification(token: string) {
+  const { data } = await api.get<{ success: boolean; message?: string }>(
+    "/auth/verify-email",
+    { params: { token } },
+  );
+  return data;
+}

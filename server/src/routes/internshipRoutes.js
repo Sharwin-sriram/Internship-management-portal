@@ -1,39 +1,21 @@
 import express from "express";
+import { protect, authorize } from "../middlewares/auth.js";
 import {
+  listPublicInternships,
   createInternship,
-  getInternships,
+  getMyInternships,
   getInternshipById,
   updateInternship,
   deleteInternship,
 } from "../controllers/internshipController.js";
-import { protect, authorize } from "../middlewares/auth.js";
 
 const router = express.Router();
 
-// Public routes for listing and viewing
-router.get("/", getInternships);
+router.get("/", listPublicInternships);
+router.post("/", protect, authorize("company"), createInternship);
+router.get("/me", protect, authorize("company"), getMyInternships);
 router.get("/:id", getInternshipById);
-
-// Protected routes requiring authentication and authorization
-router.post(
-  "/",
-  protect,
-  authorize("company", "admin", "coordinator"),
-  createInternship
-);
-
-router.put(
-  "/:id",
-  protect,
-  authorize("company", "admin", "coordinator"),
-  updateInternship
-);
-
-router.delete(
-  "/:id",
-  protect,
-  authorize("company", "admin", "coordinator"),
-  deleteInternship
-);
+router.put("/:id", protect, authorize("company"), updateInternship);
+router.delete("/:id", protect, authorize("company"), deleteInternship);
 
 export default router;

@@ -19,6 +19,9 @@ type CompanyApplication = {
   appliedAt?: string;
 };
 
+type CompanyInternshipOption = { _id: string; title: string };
+
+export default function CompanyApplicantsPage() {
 function CompanyApplicantsContent() {
   useProtectedRoute(["company"]);
   const router = useRouter();
@@ -26,6 +29,9 @@ function CompanyApplicantsContent() {
   const { showToast } = useToast();
 
   const [applications, setApplications] = useState<CompanyApplication[]>([]);
+  const [postedInternships, setPostedInternships] = useState<
+    CompanyInternshipOption[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -50,17 +56,28 @@ function CompanyApplicantsContent() {
         params.set("internshipId", selectedInternshipId);
       }
 
-      const res = await getJson<{
-        success: boolean;
-        data: CompanyApplication[];
-      }>(
-        `/companies/me/applications${params.toString() ? `?${params.toString()}` : ""}`,
-      );
+      const [appsRes, internshipsRes] = await Promise.all([
+        getJson<{
+          success: boolean;
+          data: CompanyApplication[];
+        }>(
+          `/companies/me/applications${params.toString() ? `?${params.toString()}` : ""}`,
+        ),
+        getJson<{ success: boolean; data: CompanyInternshipOption[] }>(
+          "/internships/me",
+        ),
+      ]);
 
       if (cancelled) return;
 
-      if (res.ok && res.body?.success) {
-        setApplications(res.body.data);
+      if (internshipsRes.ok && internshipsRes.body?.success) {
+        setPostedInternships(internshipsRes.body.data || []);
+      } else {
+        setPostedInternships([]);
+      }
+
+      if (appsRes.ok && appsRes.body?.success) {
+        setApplications(appsRes.body.data);
       } else {
         setApplications([]);
         setError("Unable to load company applications.");
@@ -76,13 +93,16 @@ function CompanyApplicantsContent() {
 
   const internshipOptions = useMemo(() => {
     const seen = new Map<string, string>();
+    postedInternships.forEach((internship) => {
+      seen.set(String(internship._id), internship.title || "Untitled role");
+    });
     applications.forEach((application) => {
-      if (application.internshipId && !seen.has(application.internshipId)) {
+      if (application.internshipId) {
         seen.set(application.internshipId, application.roleTitle);
       }
     });
     return Array.from(seen.entries()).map(([id, label]) => ({ id, label }));
-  }, [applications]);
+  }, [applications, postedInternships]);
 
   async function handleShortlist(applicationId: string) {
     setUpdatingId(applicationId);
@@ -142,6 +162,12 @@ function CompanyApplicantsContent() {
           onClick={() => router.push("/dashboard/company/interviews/schedule")}
         >
           Go to interview scheduler
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={() => router.push("/dashboard/company/applicants/history")}
+        >
+          View applicants history
         </Button>
       </div>
 
