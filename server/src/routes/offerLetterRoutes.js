@@ -2,6 +2,7 @@ import express from 'express';
 import { protect, authorize } from '../middlewares/auth.js';
 import {
   generateOfferLetter,
+  generateDirectOfferLetter,
   generateOfferLetterPDFHandler,
   sendOfferLetter,
   getOfferLetter,
@@ -19,6 +20,9 @@ router.use(protect);
 // Routes for Coordinators, Admins, and Companies
 router.route('/generate')
   .post(authorize('coordinator', 'admin', 'company'), generateOfferLetter);
+
+router.route('/generate-direct')
+  .post(authorize('company'), generateDirectOfferLetter);
 
 router.route('/:id/generate-pdf')
   .post(authorize('coordinator', 'admin', 'company'), generateOfferLetterPDFHandler);
