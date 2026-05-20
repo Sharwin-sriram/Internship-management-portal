@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../../context/AuthContext';
+import { getJson } from '../../../../lib/api';
 
 const templates = [
   { id: 't1', name: 'Standard Software Engineering Intern' },
@@ -21,14 +22,48 @@ export default function OfferLetterGenerator() {
   
   const student = mockStudents.find(s => s.id === selectedStudent)!;
   
+  // Calculate dynamic default expiration date (30 days from now)
+  const defaultExpirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split('T')[0];
+
   const [customFields, setCustomFields] = useState({
     companyName: user?.name || 'Tech Innovators Inc.',
     hrContact: 'Alice Johnson, HR Manager',
-    expirationDate: '2026-05-30'
+    expirationDate: defaultExpirationDate
   });
 
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+
+  useEffect(() => {
+    async function loadCompanyProfile() {
+      try {
+        const res = await getJson<{ success: boolean; data: any }>('/companies/me');
+        if (res.ok && res.body?.success && res.body.data) {
+          const profile = res.body.data;
+          setCustomFields(prev => ({
+            ...prev,
+            companyName: profile.company_name || profile.legal_name || prev.companyName,
+            hrContact: profile.primary_contact?.name 
+              ? `${profile.primary_contact.name}${profile.primary_contact.title ? `, ${profile.primary_contact.title}` : ''}`
+              : prev.hrContact
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to load company profile:', error);
+      } finally {
+        setLoadingProfile(false);
+      }
+    }
+
+    if (user && user.role === 'company') {
+      loadCompanyProfile();
+    } else {
+      setLoadingProfile(false);
+    }
+  }, [user]);
 
   const handleAction = (action: 'download' | 'send') => {
     setGenerating(true);
@@ -70,7 +105,14 @@ ${customFields.companyName}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
           
           <div style={{ background: 'var(--color-surface)', padding: 'var(--space-xl)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
-            <h2 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-md)' }}>Configuration</h2>
+            <h2 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Configuration</span>
+              {loadingProfile && (
+                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-muted)', fontWeight: 'normal' }}>
+                  ⏳ Loading profile...
+                </span>
+              )}
+            </h2>
             
             <div style={{ marginBottom: 'var(--space-md)' }}>
               <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 600, marginBottom: 6 }}>Select Candidate</label>
