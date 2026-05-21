@@ -8,6 +8,7 @@ import {
   getAllOfferLetters,
   acceptOfferLetter,
   rejectOfferLetter,
+  generateModelPDF,
 } from '../controllers/offerLetterController.js';
 
 const router = express.Router();
@@ -16,6 +17,9 @@ const router = express.Router();
 router.use(protect);
 
 // Routes for Coordinators, Admins, and Companies
+router.route('/generate-model-pdf')
+  .post(authorize('coordinator', 'admin', 'company'), generateModelPDF);
+
 router.route('/generate')
   .post(authorize('coordinator', 'admin', 'company'), generateOfferLetter);
 

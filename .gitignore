@@ -4,3 +4,5 @@ openspec
 .vscode
 node_modules
 dist
+*.pdf
+*.docx
