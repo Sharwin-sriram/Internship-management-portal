@@ -33,6 +33,7 @@ type UserProfile = {
   email: string;
   role: string;
   avatar: string;
+  phone?: string;
 };
 
 type StudentProfile = {
@@ -46,6 +47,7 @@ type StudentProfile = {
   placement_eligible: boolean;
   linkedin_url?: string;
   github_url?: string;
+  address?: string;
 };
 
 type ProjectEntry = {
@@ -85,6 +87,7 @@ type CompanyProfile = {
     city?: string;
     country?: string;
   }[];
+  address?: string;
 };
 
 const ensureHttpsPrefix = (value: string) => {
@@ -121,6 +124,7 @@ export default function ProfilePage() {
   // Form State
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
+  const [userPhone, setUserPhone] = useState("");
 
   // Student State
   const [studentDetails, setStudentDetails] = useState<StudentProfile>({
@@ -132,6 +136,7 @@ export default function ProfilePage() {
     placement_eligible: true,
     linkedin_url: "",
     github_url: "",
+    address: "",
   });
   type SkillEntry = { name: string; proficiency: number };
   const [skillEntries, setSkillEntries] = useState<SkillEntry[]>([]);
@@ -151,6 +156,7 @@ export default function ProfilePage() {
     primary_contact: { name: "", email: "", phone: "", title: "" },
     social_links: [],
     office_locations: [],
+    address: "",
   });
   const [industryOptions, setIndustryOptions] = useState<string[]>([]);
   const predefinedCompanySizes = ["1-10", "10-20", "20-50", "50-100", "Custom"];
@@ -200,8 +206,12 @@ export default function ProfilePage() {
       if (res.ok && res.body?.success) {
         setUserName(res.body.data.user.name || "");
         setUserAvatar(res.body.data.user.avatar || "");
+        setUserPhone(res.body.data.user.phone || "");
         if (res.body.data.student) {
-          setStudentDetails(res.body.data.student);
+          setStudentDetails({
+            ...res.body.data.student,
+            address: res.body.data.student.address || "",
+          });
           const fetchedSkills: string[] = res.body.data.student.skills || [];
           const profs: Record<string, number> =
             res.body.data.student.skillProficiencies ||
@@ -263,6 +273,7 @@ export default function ProfilePage() {
                 },
                 social_links: c.social_links || [],
                 office_locations: c.office_locations || [],
+                address: c.address || "",
               });
             } else {
               const nextSize = res.body.data.company.size || "";
@@ -274,7 +285,10 @@ export default function ProfilePage() {
                 nextIndustry !== "" &&
                   !nextIndustryOptions.includes(nextIndustry),
               );
-              setCompanyDetails(res.body.data.company);
+              setCompanyDetails({
+                ...res.body.data.company,
+                address: res.body.data.company.address || "",
+              });
             }
           } catch (e) {
             const nextSize = res.body.data.company.size || "";
@@ -286,7 +300,10 @@ export default function ProfilePage() {
               nextIndustry !== "" &&
                 !nextIndustryOptions.includes(nextIndustry),
             );
-            setCompanyDetails(res.body.data.company);
+            setCompanyDetails({
+              ...res.body.data.company,
+              address: res.body.data.company.address || "",
+            });
           }
         }
         setResume(res.body.data.resume ?? null);
@@ -329,6 +346,7 @@ export default function ProfilePage() {
       };
 
       if (user?.role === "student") {
+        payload.phone = userPhone;
         payload.studentDetails = {
           ...studentDetails,
           linkedin_url: ensureHttpsPrefix(studentDetails.linkedin_url || ""),
@@ -359,6 +377,7 @@ export default function ProfilePage() {
           description: companyDetails.description,
           social_links: companyDetails.social_links,
           office_locations: companyDetails.office_locations,
+          address: companyDetails.address || "",
         };
 
         res = await putJson<{ success: boolean; data: any; message?: string }>(
@@ -1033,6 +1052,87 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
+                  <h4
+                    style={{
+                      fontSize: "var(--font-size-base)",
+                      fontWeight: 700,
+                      margin: "var(--space-sm) 0 var(--space-xs)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    Contact Details
+                  </h4>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(260px, 1fr))",
+                      gap: "var(--space-md)",
+                    }}
+                  >
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "var(--font-size-sm)",
+                          fontWeight: 600,
+                          marginBottom: 8,
+                        }}
+                      >
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        placeholder="Phone Number"
+                        value={userPhone}
+                        onChange={(e) => setUserPhone(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "var(--radius)",
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-background)",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "var(--font-size-sm)",
+                          fontWeight: 600,
+                          marginBottom: 8,
+                        }}
+                      >
+                        Address
+                      </label>
+                      <textarea
+                        placeholder="Address"
+                        value={studentDetails.address || ""}
+                        onChange={(e) =>
+                          setStudentDetails({
+                            ...studentDetails,
+                            address: e.target.value,
+                          })
+                        }
+                        rows={2}
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "var(--radius)",
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-background)",
+                          fontFamily: "inherit",
+                          resize: "vertical",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
                   <label
                     style={{
                       display: "block",
@@ -1335,6 +1435,34 @@ export default function ProfilePage() {
                   </div>
                   <div style={{ fontWeight: 600 }}>
                     {studentDetails.graduation_year || "-"}
+                  </div>
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "var(--font-size-sm)",
+                      color: "var(--color-muted)",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Phone Number
+                  </div>
+                  <div style={{ fontWeight: 600 }}>
+                    {userPhone || "-"}
+                  </div>
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "var(--font-size-sm)",
+                      color: "var(--color-muted)",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Address
+                  </div>
+                  <div style={{ fontWeight: 600, whiteSpace: "pre-line" }}>
+                    {studentDetails.address || "-"}
                   </div>
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
@@ -1731,6 +1859,38 @@ export default function ProfilePage() {
                       marginBottom: 8,
                     }}
                   >
+                    Company Address
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={companyDetails.address || ""}
+                    onChange={(e) =>
+                      setCompanyDetails({
+                        ...companyDetails,
+                        address: e.target.value,
+                      })
+                    }
+                    placeholder="Company Address"
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--color-border)",
+                      background: "var(--color-background)",
+                      fontFamily: "inherit",
+                      resize: "vertical",
+                    }}
+                  />
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "var(--font-size-sm)",
+                      fontWeight: 600,
+                      marginBottom: 8,
+                    }}
+                  >
                     Description
                   </label>
                   <textarea
@@ -2064,6 +2224,20 @@ export default function ProfilePage() {
                       <FiLink /> No website added
                     </span>
                   )}
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <div
+                    style={{
+                      fontSize: "var(--font-size-sm)",
+                      color: "var(--color-muted)",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Company Address
+                  </div>
+                  <div style={{ fontWeight: 500, whiteSpace: "pre-line" }}>
+                    {companyDetails.address || "-"}
+                  </div>
                 </div>
               </div>
             )}

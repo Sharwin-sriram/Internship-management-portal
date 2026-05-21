@@ -99,6 +99,7 @@ export const createCompany = async (req, res) => {
       industry,
       size,
       website,
+      address: req.body.address || "",
       primary_contact,
       logo_url: logo_url || "",
       description: description || "",
@@ -256,6 +257,7 @@ export const updateMyCompany = async (req, res) => {
       industry: req.body.industry ?? company.industry,
       size: req.body.size ?? company.size,
       website: req.body.website ?? company.website,
+      address: req.body.address ?? company.address,
       // Merge primary_contact so partial updates don't remove existing subfields (like email)
       primary_contact: req.body.primary_contact
         ? { ...(company.primary_contact || {}), ...req.body.primary_contact }
@@ -559,7 +561,7 @@ export const getMyApplications = async (req, res) => {
     const applications = await Application.find(query)
       .populate({
         path: "student",
-        populate: { path: "user", select: "name email" },
+        populate: { path: "user", select: "name email phone" },
       })
       .populate("internship", "title")
       .sort({ last_updated: -1 })
@@ -570,6 +572,8 @@ export const getMyApplications = async (req, res) => {
       studentId: app.student?._id,
       studentName: app.student?.user?.name || "Student",
       studentEmail: app.student?.user?.email || "",
+      studentPhone: app.student?.user?.phone || "",
+      studentAddress: app.student?.address || "",
       roleTitle: app.internship?.title || "Internship",
       internshipId: app.internship?._id,
       status: app.status,

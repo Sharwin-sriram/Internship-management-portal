@@ -108,7 +108,7 @@ export const generateOfferLetterPDF = async (offerData) => {
       const dateStr = offerData.date || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
       doc.fillColor("#334155").font("Helvetica").fontSize(11).text("To:", 54, 185);
       doc.fillColor("#0F172A").font("Helvetica-Bold").fontSize(11.5).text(offerData.studentName, 54, 201);
-      doc.fillColor("#475569").font("Helvetica").fontSize(10.5).text("123 Anywhere St., Any City ST 1234", 54, 217);
+      doc.fillColor("#475569").font("Helvetica").fontSize(10.5).text(offerData.studentAddress || "123 Anywhere St., Any City ST 1234", 54, 217);
       doc.fillColor("#334155").font("Helvetica").fontSize(10.5).text(dateStr, 400, 185, { align: "right", width: 158 });
 
       // Salutation
@@ -152,30 +152,15 @@ export const generateOfferLetterPDF = async (offerData) => {
       const sigStartY = doc.y + 24;
       doc.fillColor("#1E293B").font("Helvetica").fontSize(11).text("Sincerely,", 380, sigStartY);
 
-      const signatureType = offerData.signatureType || "default";
       const signatureImage = offerData.signatureImage;
 
-      if (signatureType === "upload" && signatureImage) {
+      if (signatureImage) {
         try {
           const base64Data = signatureImage.replace(/^data:image\/\w+;base64,/, "");
           const imageBuffer = Buffer.from(base64Data, "base64");
           doc.image(imageBuffer, 380, sigStartY + 10, { width: 120, height: 45 });
         } catch (err) {
           console.error("Error drawing signature image:", err);
-        }
-      } else {
-        // Draw gorgeous custom cursive vector path
-        try {
-          doc.save();
-          doc.translate(380, sigStartY + 10);
-          doc.scale(0.5);
-          doc.path("M 25 45 C 15 10, 40 5, 30 40 C 20 70, 5 60, 65 42 C 75 35, 82 35, 85 50 C 90 40, 95 42, 98 50 C 102 30, 110 30, 107 50 C 112 40, 122 40, 122 52 C 118 75, 102 72, 128 45 C 136 32, 150 30, 144 50 C 140 70, 132 72, 152 46 C 156 38, 162 40, 166 48 C 174 38, 190 38, 205 50")
-             .lineWidth(2.5)
-             .strokeColor("#0A5C36")
-             .stroke();
-          doc.restore();
-        } catch (err) {
-          console.error("Error drawing vector signature:", err);
         }
       }
 
@@ -196,9 +181,9 @@ export const generateOfferLetterPDF = async (offerData) => {
 
       // Footer Details
       const footerY = 705;
-      doc.fillColor("#334155").font("Helvetica").fontSize(9.5).text("+123-456-7890", 350, footerY, { align: "right", width: 232 });
-      doc.fillColor("#0A5C36").font("Helvetica-Bold").text("hello@reallygreatsite.com", 350, footerY + 13, { align: "right", width: 232 });
-      doc.fillColor("#64748B").font("Helvetica").text("123 Anywhere St., Any City", 350, footerY + 26, { align: "right", width: 232 });
+      doc.fillColor("#334155").font("Helvetica").fontSize(9.5).text(offerData.companyPhone || "+123-456-7890", 350, footerY, { align: "right", width: 232 });
+      doc.fillColor("#0A5C36").font("Helvetica-Bold").text(offerData.companyEmail || "hello@reallygreatsite.com", 350, footerY + 13, { align: "right", width: 232 });
+      doc.fillColor("#64748B").font("Helvetica").text(offerData.companyAddress || "123 Anywhere St., Any City", 350, footerY + 26, { align: "right", width: 232 });
 
       doc.end();
 
