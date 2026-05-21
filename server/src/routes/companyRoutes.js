@@ -15,6 +15,7 @@ import {
   getMyApplications,
   getMyApplicationsHistory,
   shortlistMyApplication,
+  rejectMyApplication,
   getRecruiters,
   addRecruiter,
   removeRecruiter,
@@ -63,6 +64,12 @@ router.patch(
   protect,
   authorize("company"),
   shortlistMyApplication,
+);
+router.patch(
+  "/me/applications/:applicationId/reject",
+  protect,
+  authorize("company"),
+  rejectMyApplication,
 );
 
 router.get("/me/recruiters", protect, authorize("company"), getRecruiters);

@@ -18,6 +18,7 @@ const jobApplicationSchema = new mongoose.Schema(
     interviewTime:  { type: String, trim: true },
     interviewLink:  { type: String, trim: true },
     adminNotes:     { type: String, trim: true },
+    rejectionReason: { type: String, trim: true },
     status: {
       type: String,
       enum: ["applied", "pending", "reviewed", "shortlisted", "interview_scheduled", "selected", "rejected", "offer_issued"],

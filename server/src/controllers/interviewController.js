@@ -155,11 +155,13 @@ export const completeInterview = async (req, res) => {
   try {
     const decision = req.body.decision;
     const notes = req.body.notes || "";
+    const rejectionReason = req.body.rejectionReason || req.body.rejection_reason || "";
     const interview = await interviewService.completeInterviewWithDecision({
       interviewId: req.params.id,
       companyUser: req.user,
       decision,
       notes,
+      rejectionReason,
     });
     return sendSuccess(res, { data: interview });
   } catch (error) {
