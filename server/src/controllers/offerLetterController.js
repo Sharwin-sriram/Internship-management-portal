@@ -5,7 +5,9 @@ import Company from "../models/Company.js";
 import User from "../models/user.js";
 import Student from "../models/Student.js";
 import Internship from "../models/Internship.js";
+import JobApplication from "../models/JobApplication.js";
 import emailService from "../services/emailService.js";
+import { createInAppNotification } from "../services/notificationService.js";
 import { generateOfferLetterPDF } from "../services/pdfService.js";
 import PDFDocument from "pdfkit";
 
@@ -217,7 +219,9 @@ export const generateDirectOfferLetter = async (req, res) => {
       });
     }
 
-    let studentUser = await User.findOne({ email: String(studentEmail).toLowerCase() });
+    let studentUser = await User.findOne({
+      email: String(studentEmail).toLowerCase(),
+    });
     if (!studentUser) {
       studentUser = await User.create({
         name: studentName,
@@ -332,7 +336,7 @@ export const generateOfferLetterPDFHandler = async (req, res) => {
       signatureImage = null,
       hrContact = null,
       expirationDate = null,
-      date = null
+      date = null,
     } = req.body;
 
     const offerLetter = await OfferLetter.findById(id)
@@ -360,7 +364,9 @@ export const generateOfferLetterPDFHandler = async (req, res) => {
     let resolvedHrContact = hrContact;
     if (!resolvedHrContact) {
       // Find the company profile
-      const companyProfile = await Company.findOne({ user: offerLetter.generated_by || req.user._id });
+      const companyProfile = await Company.findOne({
+        user: offerLetter.generated_by || req.user._id,
+      });
       if (companyProfile && companyProfile.primary_contact?.name) {
         resolvedHrContact = `${companyProfile.primary_contact.name}${companyProfile.primary_contact.title ? `, ${companyProfile.primary_contact.title}` : ""}`;
       } else {
@@ -368,8 +374,22 @@ export const generateOfferLetterPDFHandler = async (req, res) => {
       }
     }
 
-    const resolvedExpirationDate = expirationDate || (offerLetter.expiry_date ? new Date(offerLetter.expiry_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "N/A");
-    const resolvedDate = date || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const resolvedExpirationDate =
+      expirationDate ||
+      (offerLetter.expiry_date
+        ? new Date(offerLetter.expiry_date).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })
+        : "N/A");
+    const resolvedDate =
+      date ||
+      new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
 
     // Generate PDF
     const pdfUrl = await generateOfferLetterPDF({
@@ -417,6 +437,7 @@ export const generateOfferLetterPDFHandler = async (req, res) => {
 export const sendOfferLetter = async (req, res) => {
   try {
     const { id } = req.params;
+    const now = new Date();
 
     const offerLetter = await OfferLetter.findById(id)
       .populate("student")
@@ -432,9 +453,9 @@ export const sendOfferLetter = async (req, res) => {
 
     if (req.user.role === "company") {
       const ctx = await resolveOfferLetterContext(offerLetter);
-      const companyProfile = await Company.findOne({ user: req.user._id }).select(
-        "_id",
-      );
+      const companyProfile = await Company.findOne({
+        user: req.user._id,
+      }).select("_id");
       if (
         !companyProfile ||
         String(companyProfile._id) !== String(ctx.companyId)
@@ -466,10 +487,45 @@ export const sendOfferLetter = async (req, res) => {
       expiryDate: offerLetter.expiry_date,
     });
 
+    const portalApplication = offerLetter.application
+      ? await Application.findById(offerLetter.application)
+      : null;
+    if (portalApplication && portalApplication.status !== "offer_issued") {
+      portalApplication.status = "offer_issued";
+      portalApplication.offer_made_at = now;
+      await portalApplication.save();
+    }
+
+    const studentJobApplication = await JobApplication.findOne({
+      email: String(ctx.studentEmail).toLowerCase(),
+      internship: offerLetter.internship?._id || offerLetter.internship,
+    }).select("_id");
+
+    const trackingUrl = studentJobApplication
+      ? `/dashboard/student/applications/track/${studentJobApplication._id}`
+      : `/dashboard/student/applications`;
+
+    if (ctx.studentUserId) {
+      await createInAppNotification({
+        userIds: [ctx.studentUserId],
+        event_type: "offer_letter_sent",
+        title: "Offer letter sent",
+        message: `Your offer letter for ${ctx.position} at ${ctx.companyName} is now available.`,
+        action_url: trackingUrl,
+        payload: {
+          offerLetterId: offerLetter._id,
+          applicationId: portalApplication?._id || null,
+          internshipId:
+            offerLetter.internship?._id || offerLetter.internship || null,
+        },
+      });
+    }
+
     // Update status
     offerLetter.status = "sent";
     offerLetter.email_sent = true;
-    offerLetter.email_sent_at = new Date();
+    offerLetter.sent_date = now;
+    offerLetter.email_sent_at = now;
     await offerLetter.save();
 
     res.status(200).json({
@@ -507,9 +563,9 @@ export const getOfferLetter = async (req, res) => {
     // Check access
     if (req.user.role === "company") {
       const ctx = await resolveOfferLetterContext(offerLetter);
-      const companyProfile = await Company.findOne({ user: req.user._id }).select(
-        "_id",
-      );
+      const companyProfile = await Company.findOne({
+        user: req.user._id,
+      }).select("_id");
       if (
         !companyProfile ||
         String(companyProfile._id) !== String(ctx.companyId)
@@ -519,10 +575,7 @@ export const getOfferLetter = async (req, res) => {
           message: "Not authorized to access this offer letter",
         });
       }
-    } else if (
-      req.user.role !== "admin" &&
-      req.user.role !== "coordinator"
-    ) {
+    } else if (req.user.role !== "admin" && req.user.role !== "coordinator") {
       const ctx = await resolveOfferLetterContext(offerLetter);
       if (String(ctx.studentUserId) !== String(req.user._id)) {
         return res.status(403).json({
@@ -556,9 +609,9 @@ export const getAllOfferLetters = async (req, res) => {
     if (req.user.role === "student") {
       query.student = req.user._id;
     } else if (req.user.role === "company") {
-      const companyProfile = await Company.findOne({ user: req.user._id }).select(
-        "_id",
-      );
+      const companyProfile = await Company.findOne({
+        user: req.user._id,
+      }).select("_id");
       if (!companyProfile) {
         return res.status(200).json({
           success: true,
@@ -698,9 +751,9 @@ export const downloadOfferLetterPDF = async (req, res) => {
     // Check access
     if (req.user.role === "company") {
       const ctx = await resolveOfferLetterContext(offerLetter);
-      const companyProfile = await Company.findOne({ user: req.user._id }).select(
-        "_id",
-      );
+      const companyProfile = await Company.findOne({
+        user: req.user._id,
+      }).select("_id");
       if (
         !companyProfile ||
         String(companyProfile._id) !== String(ctx.companyId)
@@ -710,10 +763,7 @@ export const downloadOfferLetterPDF = async (req, res) => {
           message: "Not authorized to download this offer letter",
         });
       }
-    } else if (
-      req.user.role !== "admin" &&
-      req.user.role !== "coordinator"
-    ) {
+    } else if (req.user.role !== "admin" && req.user.role !== "coordinator") {
       const ctx = await resolveOfferLetterContext(offerLetter);
       if (String(ctx.studentUserId) !== String(req.user._id)) {
         return res.status(403).json({
@@ -747,10 +797,7 @@ export const downloadOfferLetterPDF = async (req, res) => {
 
     // Set headers for download
     const ctx = await resolveOfferLetterContext(offerLetter);
-    const safeStudentName = (ctx.studentName || "student").replace(
-      /\s+/g,
-      "-",
-    );
+    const safeStudentName = (ctx.studentName || "student").replace(/\s+/g, "-");
     const fileName = `offer-letter-${safeStudentName}-${offerLetter._id}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
@@ -825,9 +872,13 @@ export const generateModelPDF = async (req, res) => {
       expirationDate = "March 10, 2026",
       hrContact = "Teddy Yu",
       hrContactTitle = "HRD",
-      date = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+      date = new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
       signatureType = "default",
-      signatureImage = null
+      signatureImage = null,
     } = req.body;
 
     const doc = new PDFDocument({
@@ -836,12 +887,15 @@ export const generateModelPDF = async (req, res) => {
         top: 54,
         bottom: 54,
         left: 54,
-        right: 54
-      }
+        right: 54,
+      },
     });
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${candidateName.replace(/\s+/g, "_")}_Offer_Letter.pdf"`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${candidateName.replace(/\s+/g, "_")}_Offer_Letter.pdf"`,
+    );
     doc.pipe(res);
 
     // Side borders
@@ -862,7 +916,12 @@ export const generateModelPDF = async (req, res) => {
     doc.fillColor("#4ADE80").polygon([10, 765], [35, 792], [10, 792]).fill();
 
     // Accent line
-    doc.strokeColor("#DCFCE7").lineWidth(2).moveTo(10, 660).lineTo(140, 790).stroke();
+    doc
+      .strokeColor("#DCFCE7")
+      .lineWidth(2)
+      .moveTo(10, 660)
+      .lineTo(140, 790)
+      .stroke();
 
     // Logo slanted growth
     doc.fillColor("#15803D");
@@ -871,22 +930,66 @@ export const generateModelPDF = async (req, res) => {
     doc.polygon([62, 38], [70, 32], [70, 75], [62, 75]).fill();
 
     // Header Text
-    doc.fillColor("#0A5C36").font("Helvetica-Bold").fontSize(18).text(companyName.toUpperCase(), 82, 36);
-    doc.fillColor("#22C55E").font("Helvetica").fontSize(10).text("www.reallygreatsite.com", 82, 56);
+    doc
+      .fillColor("#0A5C36")
+      .font("Helvetica-Bold")
+      .fontSize(18)
+      .text(companyName.toUpperCase(), 82, 36);
+    doc
+      .fillColor("#22C55E")
+      .font("Helvetica")
+      .fontSize(10)
+      .text("www.reallygreatsite.com", 82, 56);
 
     // Job offer letter header panel
-    doc.fillColor("rgba(0, 0, 0, 0.05)").roundedRect(149, 113, 314, 46, 6).fill();
-    doc.fillColor("#DCFCE7").strokeColor("#86EFAC").lineWidth(1).roundedRect(146, 110, 314, 46, 6).fillAndStroke();
-    doc.fillColor("#0A5C36").font("Helvetica-Bold").fontSize(22).text("JOB OFFER LETTER", 146, 123, { align: "center", width: 314, characterSpacing: 1 });
+    doc
+      .fillColor("rgba(0, 0, 0, 0.05)")
+      .roundedRect(149, 113, 314, 46, 6)
+      .fill();
+    doc
+      .fillColor("#DCFCE7")
+      .strokeColor("#86EFAC")
+      .lineWidth(1)
+      .roundedRect(146, 110, 314, 46, 6)
+      .fillAndStroke();
+    doc
+      .fillColor("#0A5C36")
+      .font("Helvetica-Bold")
+      .fontSize(22)
+      .text("JOB OFFER LETTER", 146, 123, {
+        align: "center",
+        width: 314,
+        characterSpacing: 1,
+      });
 
     // To and Date
-    doc.fillColor("#334155").font("Helvetica").fontSize(11).text("To:", 54, 185);
-    doc.fillColor("#0F172A").font("Helvetica-Bold").fontSize(11.5).text(candidateName, 54, 201);
-    doc.fillColor("#475569").font("Helvetica").fontSize(10.5).text("123 Anywhere St., Any City ST 1234", 54, 217);
-    doc.fillColor("#334155").font("Helvetica").fontSize(10.5).text(date, 400, 185, { align: "right", width: 158 });
+    doc
+      .fillColor("#334155")
+      .font("Helvetica")
+      .fontSize(11)
+      .text("To:", 54, 185);
+    doc
+      .fillColor("#0F172A")
+      .font("Helvetica-Bold")
+      .fontSize(11.5)
+      .text(candidateName, 54, 201);
+    doc
+      .fillColor("#475569")
+      .font("Helvetica")
+      .fontSize(10.5)
+      .text("123 Anywhere St., Any City ST 1234", 54, 217);
+    doc
+      .fillColor("#334155")
+      .font("Helvetica")
+      .fontSize(10.5)
+      .text(date, 400, 185, { align: "right", width: 158 });
 
     // Salutation
-    doc.fillColor("#1E293B").font("Helvetica-Bold").fontSize(11.5).text(`Dear ${candidateName},`, 54, 260);
+    doc
+      .fillColor("#1E293B")
+      .font("Helvetica-Bold")
+      .fontSize(11.5)
+      .text(`Dear ${candidateName},`, 54, 260);
 
     // Body
     const p1 = `We are pleased to offer you the position of ${position} at ${companyName}. Your skills and experience will be a valuable addition to our team.`;
@@ -896,19 +999,31 @@ export const generateModelPDF = async (req, res) => {
 
     // Details of the Offer
     doc.moveDown(1.5);
-    doc.fillColor("#1E293B").font("Helvetica-Bold").fontSize(11.5).text("Details of the Offer:", { lineGap: 6 });
+    doc
+      .fillColor("#1E293B")
+      .font("Helvetica-Bold")
+      .fontSize(11.5)
+      .text("Details of the Offer:", { lineGap: 6 });
 
     const details = [
       { label: "Position", value: position },
       { label: "Start Date", value: startDate },
       { label: "Work Location", value: location },
-      { label: "Salary", value: salary }
+      { label: "Salary", value: salary },
     ];
 
-    details.forEach(detail => {
+    details.forEach((detail) => {
       const currentY = doc.y;
-      doc.fillColor("#15803D").font("Helvetica-Bold").fontSize(11).text("•", 68, currentY);
-      doc.fillColor("#334155").font("Helvetica-Bold").fontSize(10.5).text(`${detail.label}: `, 80, currentY, { continued: true });
+      doc
+        .fillColor("#15803D")
+        .font("Helvetica-Bold")
+        .fontSize(11)
+        .text("•", 68, currentY);
+      doc
+        .fillColor("#334155")
+        .font("Helvetica-Bold")
+        .fontSize(10.5)
+        .text(`${detail.label}: `, 80, currentY, { continued: true });
       doc.font("Helvetica").text(detail.value);
       doc.moveDown(0.4);
     });
@@ -916,15 +1031,26 @@ export const generateModelPDF = async (req, res) => {
     // Closing
     doc.moveDown(0.8);
     const p2 = `We look forward to your contribution and growth with us. Please confirm your acceptance by replying to this letter before ${expirationDate}.`;
-    doc.fillColor("#334155").font("Helvetica").fontSize(10.5).text(p2, { width: 504, align: "left", lineGap: 5 });
+    doc
+      .fillColor("#334155")
+      .font("Helvetica")
+      .fontSize(10.5)
+      .text(p2, { width: 504, align: "left", lineGap: 5 });
 
     // Signature
     const sigStartY = doc.y + 24;
-    doc.fillColor("#1E293B").font("Helvetica").fontSize(11).text("Sincerely,", 380, sigStartY);
+    doc
+      .fillColor("#1E293B")
+      .font("Helvetica")
+      .fontSize(11)
+      .text("Sincerely,", 380, sigStartY);
 
     if (signatureType === "upload" && signatureImage) {
       try {
-        const base64Data = signatureImage.replace(/^data:image\/\w+;base64,/, "");
+        const base64Data = signatureImage.replace(
+          /^data:image\/\w+;base64,/,
+          "",
+        );
         const imageBuffer = Buffer.from(base64Data, "base64");
         doc.image(imageBuffer, 380, sigStartY + 10, { width: 120, height: 45 });
       } catch (err) {
@@ -932,8 +1058,16 @@ export const generateModelPDF = async (req, res) => {
       }
     }
 
-    doc.fillColor("#0F172A").font("Helvetica-Bold").fontSize(11).text(hrContact, 380, sigStartY + 68);
-    doc.fillColor("#475569").font("Helvetica").fontSize(10).text(`${hrContactTitle} ${companyName}`, 380, sigStartY + 82);
+    doc
+      .fillColor("#0F172A")
+      .font("Helvetica-Bold")
+      .fontSize(11)
+      .text(hrContact, 380, sigStartY + 68);
+    doc
+      .fillColor("#475569")
+      .font("Helvetica")
+      .fontSize(10)
+      .text(`${hrContactTitle} ${companyName}`, 380, sigStartY + 82);
 
     // Footer Waves
     doc.strokeColor("#DCFCE7").lineWidth(1.2);
@@ -943,9 +1077,25 @@ export const generateModelPDF = async (req, res) => {
 
     // Footer Details
     const footerY = 705;
-    doc.fillColor("#334155").font("Helvetica").fontSize(9.5).text("+123-456-7890", 350, footerY, { align: "right", width: 232 });
-    doc.fillColor("#0A5C36").font("Helvetica-Bold").text("hello@reallygreatsite.com", 350, footerY + 13, { align: "right", width: 232 });
-    doc.fillColor("#64748B").font("Helvetica").text("123 Anywhere St., Any City", 350, footerY + 26, { align: "right", width: 232 });
+    doc
+      .fillColor("#334155")
+      .font("Helvetica")
+      .fontSize(9.5)
+      .text("+123-456-7890", 350, footerY, { align: "right", width: 232 });
+    doc
+      .fillColor("#0A5C36")
+      .font("Helvetica-Bold")
+      .text("hello@reallygreatsite.com", 350, footerY + 13, {
+        align: "right",
+        width: 232,
+      });
+    doc
+      .fillColor("#64748B")
+      .font("Helvetica")
+      .text("123 Anywhere St., Any City", 350, footerY + 26, {
+        align: "right",
+        width: 232,
+      });
 
     doc.end();
   } catch (error) {
