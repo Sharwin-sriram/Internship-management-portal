@@ -286,6 +286,131 @@ class EmailService {
     }
   }
 
+  /**
+   * Student email verification (prove ownership of address on file).
+   */
+  async sendStudentEmailVerification({ to, name, verificationUrl }) {
+    if (!to || !verificationUrl) {
+      return { success: false, message: "Missing recipient or link." };
+    }
+
+    if (!EMAIL_USER || !EMAIL_PASS) {
+      logger.warn(
+        "Email credentials not configured. Cannot send verification email.",
+      );
+      return {
+        success: false,
+        message: "Email is not configured on this server.",
+      };
+    }
+
+    const mailOptions = {
+      from: EMAIL_FROM,
+      to,
+      subject: "Verify your student email — InternHub",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #2297fa 0%, #6b6bd4 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { padding: 24px; background-color: #f9f9f9; border: 1px solid #eee; border-top: none; border-radius: 0 0 8px 8px; }
+            .button {
+              display: inline-block;
+              padding: 12px 24px;
+              background-color: #2297fa;
+              color: white !important;
+              text-decoration: none;
+              border-radius: 6px;
+              font-weight: 600;
+            }
+            .muted { font-size: 14px; color: #666; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0; font-size: 22px;">Verify your email</h1>
+            </div>
+            <div class="content">
+              <p>Hello ${name || "there"},</p>
+              <p>Confirm that this email belongs to you to complete <strong>student verification</strong> on InternHub.</p>
+              <p style="text-align: center; margin: 28px 0;">
+                <a class="button" href="${verificationUrl}">Verify my email</a>
+              </p>
+              <p class="muted">This link expires in 24 hours. If you did not request this, you can ignore this message.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `Verify your student email on InternHub:\n${verificationUrl}\n\nLink expires in 24 hours.`,
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`Student verification email sent to ${to}`);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      logger.error(`Student verification email failed: ${error.message}`);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async sendOfferLetter(to, payload) {
+    if (!to) {
+      logger.warn("Offer letter email skipped: no recipient");
+      return { success: false };
+    }
+
+    const name = payload?.name || "Candidate";
+    const company =
+      payload?.offerDetails?.company || payload?.companyName || "Company";
+    const position =
+      payload?.offerDetails?.position || payload?.position || "Intern";
+    const salary = payload?.offerDetails?.salary;
+    const expiryDate = payload?.expiryDate
+      ? new Date(payload.expiryDate).toLocaleDateString("en-IN")
+      : null;
+    const offerLetterUrl = payload?.offerLetterUrl;
+
+    const mailOptions = {
+      from: EMAIL_FROM,
+      to,
+      subject: `Offer Letter - ${company}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto;">
+          <h2 style="color: #2297FA;">Congratulations, ${name}!</h2>
+          <p>We are pleased to share your internship offer letter.</p>
+          <ul>
+            <li><strong>Company:</strong> ${company}</li>
+            <li><strong>Position:</strong> ${position}</li>
+            ${salary ? `<li><strong>Stipend:</strong> ₹${salary} per month</li>` : ""}
+            ${expiryDate ? `<li><strong>Offer valid till:</strong> ${expiryDate}</li>` : ""}
+          </ul>
+          ${
+            offerLetterUrl
+              ? `<p><a href="${offerLetterUrl}" style="display:inline-block;padding:10px 16px;background:#2297FA;color:#fff;text-decoration:none;border-radius:8px;">View Offer Letter</a></p>`
+              : ""
+          }
+          <p>Please review and respond within the validity period.</p>
+        </div>
+      `,
+      text: `Congratulations ${name}! You have received an internship offer from ${company} for ${position}.${salary ? ` Stipend: INR ${salary} per month.` : ""}${expiryDate ? ` Offer valid till ${expiryDate}.` : ""}${offerLetterUrl ? ` View letter: ${offerLetterUrl}` : ""}`,
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`Offer letter email sent to ${to}`);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      logger.error(`Offer letter email failed: ${error.message}`);
+      throw new Error("Failed to send offer letter email");
+    }
+  }
+
   async verifyConnection() {
     try {
       // Skip verification if email credentials are not configured

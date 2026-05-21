@@ -193,27 +193,50 @@ export default function HomePage() {
                 flexWrap: "wrap",
               }}
             >
-              {user && user.role !== "company" ? (
-                <Link
-                  href="/explore"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "14px 28px",
-                    borderRadius: "var(--radius)",
-                    background: "var(--gradient-brand)",
-                    color: "white",
-                    fontWeight: 700,
-                    fontSize: "var(--font-size-base)",
-                    border: "none",
-                    boxShadow: "0 6px 20px rgba(34,151,250,0.40)",
-                    letterSpacing: "0.01em",
-                    textDecoration: "none",
-                  }}
-                >
-                  Explore Internships →
-                </Link>
+              {user ? (
+                user.role === "company" ? (
+                  <Link
+                    href="/dashboard"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "14px 28px",
+                      borderRadius: "var(--radius)",
+                      background: "var(--gradient-brand)",
+                      color: "white",
+                      fontWeight: 700,
+                      fontSize: "var(--font-size-base)",
+                      border: "none",
+                      boxShadow: "0 6px 20px rgba(34,151,250,0.40)",
+                      letterSpacing: "0.01em",
+                      textDecoration: "none",
+                    }}
+                  >
+                    Go to Dashboard →
+                  </Link>
+                ) : (
+                  <Link
+                    href="/explore"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "14px 28px",
+                      borderRadius: "var(--radius)",
+                      background: "var(--gradient-brand)",
+                      color: "white",
+                      fontWeight: 700,
+                      fontSize: "var(--font-size-base)",
+                      border: "none",
+                      boxShadow: "0 6px 20px rgba(34,151,250,0.40)",
+                      letterSpacing: "0.01em",
+                      textDecoration: "none",
+                    }}
+                  >
+                    Explore Internships →
+                  </Link>
+                )
               ) : (
                 <>
                   <Link
@@ -354,7 +377,7 @@ export default function HomePage() {
                   </div>
                 ))}
                 <Link
-                  href="/dashboard/student/applications/apply"
+                  href="/explore"
                   style={{
                     marginTop: "var(--space-lg)",
                     padding: "10px",
@@ -691,22 +714,40 @@ export default function HomePage() {
                 position: "relative",
               }}
             >
-              {user && user.role !== "company" ? (
-                <Link
-                  href="/explore"
-                  style={{
-                    padding: "14px 32px",
-                    borderRadius: "var(--radius)",
-                    background: "white",
-                    color: "var(--color-primary)",
-                    fontWeight: 700,
-                    fontSize: "var(--font-size-base)",
-                    textDecoration: "none",
-                    boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
-                  }}
-                >
-                  Explore Internships
-                </Link>
+              {user ? (
+                user.role === "company" ? (
+                  <Link
+                    href="/dashboard"
+                    style={{
+                      padding: "14px 32px",
+                      borderRadius: "var(--radius)",
+                      background: "white",
+                      color: "var(--color-primary)",
+                      fontWeight: 700,
+                      fontSize: "var(--font-size-base)",
+                      textDecoration: "none",
+                      boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    Go to Dashboard
+                  </Link>
+                ) : (
+                  <Link
+                    href="/explore"
+                    style={{
+                      padding: "14px 32px",
+                      borderRadius: "var(--radius)",
+                      background: "white",
+                      color: "var(--color-primary)",
+                      fontWeight: 700,
+                      fontSize: "var(--font-size-base)",
+                      textDecoration: "none",
+                      boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    Explore Internships
+                  </Link>
+                )
               ) : (
                 <>
                   <Link

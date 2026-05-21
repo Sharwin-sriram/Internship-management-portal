@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
+import { signIn } from 'next-auth/react';
+import { startOAuth } from '../../lib/oauth';
 
 const MAX_ATTEMPTS = 5;
 const LOCK_DURATION_MINUTES = 15;
@@ -11,6 +13,25 @@ const LOCK_UNTIL_KEY = 'login_lock_until';
 const ATTEMPTS_KEY = 'login_attempts';
 
 /* ─── SVG Icons ─────────────────────────────────────────────── */
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+      <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.336 0 3.327 2.682 1.386 6.586L5.266 9.765z" />
+      <path fill="#34A853" d="M16.04 15.345c-1.127.755-2.545 1.2-4.04 1.2a5.08 5.08 0 0 1-4.873-3.418l-3.9 3.018C5.127 19.89 8.327 22 12 22c2.973 0 5.673-1.018 7.69-2.782l-3.65-3.873z" />
+      <path fill="#4285F4" d="M23.49 12.273c0-.818-.082-1.6-.218-2.363H12v4.51h6.46c-.29 1.48-1.145 2.736-2.42 3.563l3.65 3.873c2.136-1.973 3.8-4.882 3.8-8.582z" />
+      <path fill="#FBBC05" d="M7.127 13.127A5.044 5.044 0 0 1 6.818 12c0-.39.064-.773.182-1.136L3.1 7.845A9.875 9.875 0 0 0 2 12c0 1.536.355 2.99 1.018 4.29l3.9-3.018z" />
+    </svg>
+  );
+}
+
+function GithubIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.11.82-.26.82-.577v-2.234c-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22v3.293c0 .319.22.694.825.576C20.565 21.795 24 17.3 24 12c0-6.63-5.37-12-12-12z" />
+    </svg>
+  );
+}
+
 function LockIcon({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -118,6 +139,23 @@ export default function LoginPage() {
         localStorage.removeItem(LOCK_UNTIL_KEY);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    const nextAuthError = sp.get('error');
+    if (!nextAuthError) return;
+
+    const map: Record<string, string> = {
+      OAuthSignin: 'Could not start Google sign-in. Please try again.',
+      OAuthCallback: 'Google sign-in failed. Please try again.',
+      OAuthCreateAccount: 'Could not create account from Google sign-in.',
+      AccessDenied: 'Access denied during Google sign-in.',
+      Configuration: 'Login is not configured correctly. Check NEXTAUTH_URL / NEXTAUTH_SECRET.',
+      Default: 'Sign-in failed. Please try again.',
+    };
+    setError(map[nextAuthError] ?? map.Default);
   }, []);
 
   useEffect(() => {
@@ -386,6 +424,20 @@ export default function LoginPage() {
           display: flex; align-items: center; justify-content: center;
           gap: 6px; margin-top: 20px;
           font-size: 0.75rem; color: #9ca3af; font-weight: 500;
+        }
+        .social-btn {
+          display: flex; align-items: center; justify-content: center;
+          gap: 10px; padding: 12px 16px; border-radius: 10px;
+          font-weight: 600; font-size: 0.9rem; font-family: var(--font-sans);
+          cursor: pointer; transition: all 0.2s ease;
+          background: #fff; border: 1.5px solid #e4eaf3; color: #374151;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+          width: 100%;
+        }
+        .social-btn:hover {
+          background: #f9fafb; border-color: #d1d5db;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 10px rgba(0,0,0,0.06);
         }
       `}</style>
 
@@ -662,6 +714,36 @@ export default function LoginPage() {
                     'Sign in'
                   )}
                 </button>
+
+                {/* Social Login Divider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+                  <div style={{ flex: 1, height: 1, background: '#f3f4f6' }} />
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Or continue with
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: '#f3f4f6' }} />
+                </div>
+
+                {/* Social Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      document.cookie = `oauth_role=${loginRole}; path=/; max-age=300`;
+                      signIn('google', { callbackUrl: '/auth/callback' });
+                    }}
+                    className="social-btn"
+                  >
+                    <GoogleIcon /> Continue with Google
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => startOAuth('github', loginRole)}
+                    className="social-btn"
+                  >
+                    <GithubIcon /> Continue with GitHub
+                  </button>
+                </div>
 
                 {/* Footer link */}
                 <p style={{

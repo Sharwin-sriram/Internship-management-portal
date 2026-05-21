@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../../components/ui/Button";
+import { getPublicJson } from "../../lib/api";
 import {
   FiSearch,
   FiMapPin,
@@ -12,90 +12,106 @@ import {
   FiDollarSign,
 } from "react-icons/fi";
 
-const mockInternships = [
-  {
-    id: "1",
-    role: "Frontend Engineering Intern",
-    company: "TechCorp Solutions",
-    location: "Remote",
-    stipend: "₹20,000/mo",
-    type: "Full-time",
-    duration: "3 months",
-    tags: ["React", "TypeScript", "Next.js"],
-    logo: "T",
-    color: "#2297FA",
-    bg: "rgba(34,151,250,0.1)",
-  },
-  {
-    id: "2",
-    role: "Product Design Intern",
-    company: "Creative Studio",
-    location: "Bangalore, India",
-    stipend: "₹25,000/mo",
-    type: "Part-time",
-    duration: "6 months",
-    tags: ["Figma", "UI/UX", "Prototyping"],
-    logo: "C",
-    color: "#8082D6",
-    bg: "rgba(128,130,214,0.1)",
-  },
-  {
-    id: "3",
-    role: "Data Science Intern",
-    company: "Analytics Hub",
-    location: "Hyderabad, India",
-    stipend: "₹30,000/mo",
-    type: "Full-time",
-    duration: "6 months",
-    tags: ["Python", "Machine Learning", "SQL"],
-    logo: "A",
-    color: "#50B6FE",
-    bg: "rgba(80,182,254,0.1)",
-  },
-  {
-    id: "4",
-    role: "Backend Engineering Intern",
-    company: "Cloud Systems",
-    location: "Remote",
-    stipend: "₹22,000/mo",
-    type: "Full-time",
-    duration: "4 months",
-    tags: ["Node.js", "PostgreSQL", "Docker"],
-    logo: "C",
-    color: "#94AEFE",
-    bg: "rgba(148,174,254,0.1)",
-  },
-  {
-    id: "5",
-    role: "Marketing Intern",
-    company: "Growth Partners",
-    location: "Mumbai, India",
-    stipend: "₹15,000/mo",
-    type: "Full-time",
-    duration: "3 months",
-    tags: ["SEO", "Content", "Social Media"],
-    logo: "G",
-    color: "#7ED8FA",
-    bg: "rgba(126,216,250,0.1)",
-  },
+type CompanyRef = {
+  _id?: string;
+  company_name?: string;
+  logo_url?: string;
+};
+
+export type ExploreInternship = {
+  _id: string;
+  title: string;
+  description?: string;
+  company?: CompanyRef | null;
+  stipend_min: number;
+  stipend_max: number;
+  duration?: string;
+  location?: string;
+  skills_required?: string[];
+  deadline?: string;
+};
+
+const AVATAR_STYLES = [
+  { color: "#2297FA", bg: "rgba(34,151,250,0.1)" },
+  { color: "#8082D6", bg: "rgba(128,130,214,0.1)" },
+  { color: "#50B6FE", bg: "rgba(80,182,254,0.1)" },
+  { color: "#94AEFE", bg: "rgba(148,174,254,0.1)" },
+  { color: "#7ED8FA", bg: "rgba(126,216,250,0.1)" },
 ];
+
+function styleForId(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i)) % 997;
+  return AVATAR_STYLES[h % AVATAR_STYLES.length];
+}
+
+function formatLocation(location?: string) {
+  if (!location) return "—";
+  const map: Record<string, string> = {
+    remote: "Remote",
+    "on-site": "On-site",
+    hybrid: "Hybrid",
+  };
+  return map[location] ?? location;
+}
+
+function formatStipend(min: number, max: number) {
+  const fmt = (n: number) =>
+    `₹${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 })}/mo`;
+  if (min === max) return fmt(min);
+  return `${fmt(min)} – ${fmt(max)}`;
+}
 
 export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [internships, setInternships] = useState<ExploreInternship[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const router = useRouter();
 
-  const filteredInternships = mockInternships.filter(
-    (internship) =>
-      internship.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      internship.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      internship.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase()),
-      ),
-  );
+  const loadInternships = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+    const res = await getPublicJson<{
+      success: boolean;
+      data?: ExploreInternship[];
+      message?: string;
+    }>("/internships");
+    if (res.ok && res.body?.success && Array.isArray(res.body.data)) {
+      setInternships(res.body.data);
+    } else {
+      setInternships([]);
+      setLoadError(
+        res.body?.message ||
+          (res.ok ? "Could not load internships." : "Unable to reach server."),
+      );
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void loadInternships();
+  }, [loadInternships]);
+
+  const filteredInternships = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return internships;
+    return internships.filter((i) => {
+      const companyName =
+        (i.company && typeof i.company === "object"
+          ? i.company.company_name
+          : "") || "";
+      const skills = (i.skills_required || []).join(" ").toLowerCase();
+      return (
+        i.title.toLowerCase().includes(q) ||
+        companyName.toLowerCase().includes(q) ||
+        skills.includes(q)
+      );
+    });
+  }, [internships, searchQuery]);
 
   return (
     <div style={{ background: "var(--color-background)", minHeight: "100vh" }}>
-      {/* Header section */}
       <section
         style={{
           background: "var(--color-surface)",
@@ -182,9 +198,24 @@ export default function ExplorePage() {
         </div>
       </section>
 
-      {/* Main content */}
       <section style={{ padding: "var(--space-2xl) var(--space-lg)" }}>
         <div style={{ maxWidth: "var(--max-width)", margin: "0 auto" }}>
+          {loadError && !loading && (
+            <div
+              style={{
+                padding: "1rem 1.25rem",
+                marginBottom: "var(--space-lg)",
+                borderRadius: "var(--radius)",
+                background: "rgba(239, 68, 68, 0.08)",
+                border: "1px solid rgba(239, 68, 68, 0.25)",
+                color: "#b91c1c",
+                fontWeight: 500,
+              }}
+            >
+              {loadError}
+            </div>
+          )}
+
           <div
             style={{
               marginBottom: "var(--space-lg)",
@@ -194,184 +225,251 @@ export default function ExplorePage() {
             }}
           >
             <h2 style={{ fontSize: "var(--font-size-xl)", fontWeight: 700 }}>
-              {filteredInternships.length} opportunities found
+              {loading
+                ? "Loading opportunities…"
+                : `${filteredInternships.length} opportunit${filteredInternships.length === 1 ? "y" : "ies"} found`}
             </h2>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-              gap: "var(--space-lg)",
-            }}
-          >
-            {filteredInternships.map((internship) => (
+          {loading ? (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                padding: "var(--space-3xl)",
+                color: "var(--color-muted)",
+              }}
+            >
               <div
-                key={internship.id}
-                className="animate-fade-in-up"
                 style={{
-                  background: "var(--color-surface)",
-                  borderRadius: "var(--radius-xl)",
-                  border: "1px solid var(--color-border)",
-                  padding: "var(--space-xl)",
-                  transition:
-                    "transform var(--transition-base), box-shadow var(--transition-base)",
-                  display: "flex",
-                  flexDirection: "column",
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  border: "3px solid var(--color-primary)",
+                  borderTopColor: "transparent",
+                  animation: "spin 0.7s linear infinite",
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-4px)";
-                  e.currentTarget.style.boxShadow = "var(--shadow-md)";
-                  e.currentTarget.style.borderColor = "var(--color-primary-20)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "none";
-                  e.currentTarget.style.borderColor = "var(--color-border)";
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "var(--space-md)",
-                    marginBottom: "var(--space-md)",
-                  }}
-                >
+              />
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+                gap: "var(--space-lg)",
+              }}
+            >
+              {filteredInternships.map((internship) => {
+                const company =
+                  internship.company &&
+                  typeof internship.company === "object"
+                    ? internship.company
+                    : null;
+                const companyName = company?.company_name?.trim() || "Company";
+                const logoUrl = company?.logo_url?.trim();
+                const letter =
+                  companyName.charAt(0).toUpperCase() || "?";
+                const avatar = styleForId(internship._id);
+                const tags = internship.skills_required?.length
+                  ? internship.skills_required
+                  : ["See description"];
+                const applyHref = `/dashboard/student/applications/apply?job=${encodeURIComponent(internship.title)}&internshipId=${encodeURIComponent(internship._id)}`;
+
+                return (
                   <div
+                    key={internship._id}
+                    className="animate-fade-in-up"
                     style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: "var(--radius-lg)",
-                      background: internship.bg,
-                      color: internship.color,
+                      background: "var(--color-surface)",
+                      borderRadius: "var(--radius-xl)",
+                      border: "1px solid var(--color-border)",
+                      padding: "var(--space-xl)",
+                      transition:
+                        "transform var(--transition-base), box-shadow var(--transition-base)",
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "1.5rem",
-                      fontWeight: 800,
-                      flexShrink: 0,
+                      flexDirection: "column",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-4px)";
+                      e.currentTarget.style.boxShadow = "var(--shadow-md)";
+                      e.currentTarget.style.borderColor =
+                        "var(--color-primary-20)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "none";
+                      e.currentTarget.style.borderColor =
+                        "var(--color-border)";
                     }}
                   >
-                    {internship.logo}
-                  </div>
-                  <div>
-                    <h3
-                      style={{
-                        fontSize: "var(--font-size-lg)",
-                        fontWeight: 700,
-                        marginBottom: 4,
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      {internship.role}
-                    </h3>
                     <div
                       style={{
-                        color: "var(--color-muted)",
-                        fontSize: "var(--font-size-sm)",
-                        fontWeight: 500,
+                        display: "flex",
+                        gap: "var(--space-md)",
+                        marginBottom: "var(--space-md)",
                       }}
                     >
-                      {internship.company}
+                      <div
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: "var(--radius-lg)",
+                          background: avatar.bg,
+                          color: avatar.color,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "1.5rem",
+                          fontWeight: 800,
+                          flexShrink: 0,
+                          overflow: "hidden",
+                        }}
+                      >
+                        {logoUrl ? (
+                          <img
+                            src={logoUrl}
+                            alt=""
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        ) : (
+                          letter
+                        )}
+                      </div>
+                      <div>
+                        <h3
+                          style={{
+                            fontSize: "var(--font-size-lg)",
+                            fontWeight: 700,
+                            marginBottom: 4,
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {internship.title}
+                        </h3>
+                        <div
+                          style={{
+                            color: "var(--color-muted)",
+                            fontSize: "var(--font-size-sm)",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {companyName}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "var(--space-sm)",
+                        marginBottom: "var(--space-lg)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: "var(--font-size-xs)",
+                          color: "var(--color-subtle)",
+                          background: "var(--color-background)",
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                        }}
+                      >
+                        <FiMapPin /> {formatLocation(internship.location)}
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: "var(--font-size-xs)",
+                          color: "var(--color-subtle)",
+                          background: "var(--color-background)",
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                        }}
+                      >
+                        <FiDollarSign />{" "}
+                        {formatStipend(
+                          internship.stipend_min,
+                          internship.stipend_max,
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: "var(--font-size-xs)",
+                          color: "var(--color-subtle)",
+                          background: "var(--color-background)",
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                        }}
+                      >
+                        <FiBriefcase />{" "}
+                        {internship.duration?.trim() || "Duration TBD"}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        marginBottom: "var(--space-xl)",
+                        flex: 1,
+                      }}
+                    >
+                      {tags.slice(0, 8).map((tag) => (
+                        <span
+                          key={tag}
+                          style={{
+                            fontSize: "var(--font-size-xs)",
+                            fontWeight: 600,
+                            color: "var(--color-foreground)",
+                            background: "var(--color-border)",
+                            padding: "4px 10px",
+                            borderRadius: 6,
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div style={{ display: "flex", gap: "var(--space-sm)" }}>
+                      <Button
+                        variant="primary"
+                        style={{ flex: 1 }}
+                        onClick={() => router.push(applyHref)}
+                      >
+                        Apply Now
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        style={{ flex: 1 }}
+                        onClick={() =>
+                          router.push(`/explore/${internship._id}`)
+                        }
+                      >
+                        Details
+                      </Button>
                     </div>
                   </div>
-                </div>
+                );
+              })}
+            </div>
+          )}
 
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "var(--space-sm)",
-                    marginBottom: "var(--space-lg)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: "var(--font-size-xs)",
-                      color: "var(--color-subtle)",
-                      background: "var(--color-background)",
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                    }}
-                  >
-                    <FiMapPin /> {internship.location}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: "var(--font-size-xs)",
-                      color: "var(--color-subtle)",
-                      background: "var(--color-background)",
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                    }}
-                  >
-                    <FiDollarSign /> {internship.stipend}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: "var(--font-size-xs)",
-                      color: "var(--color-subtle)",
-                      background: "var(--color-background)",
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                    }}
-                  >
-                    <FiBriefcase /> {internship.type}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 6,
-                    marginBottom: "var(--space-xl)",
-                    flex: 1,
-                  }}
-                >
-                  {internship.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      style={{
-                        fontSize: "var(--font-size-xs)",
-                        fontWeight: 600,
-                        color: "var(--color-foreground)",
-                        background: "var(--color-border)",
-                        padding: "4px 10px",
-                        borderRadius: 6,
-                      }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                <div style={{ display: "flex", gap: "var(--space-sm)" }}>
-                  <Button
-                    variant="primary"
-                    style={{ flex: 1 }}
-                    onClick={() =>
-                      router.push("/dashboard/student/applications/apply")
-                    }
-                  >
-                    Apply Now
-                  </Button>
-                  <Button variant="secondary">Details</Button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {filteredInternships.length === 0 && (
+          {!loading && filteredInternships.length === 0 && (
             <div
               style={{
                 textAlign: "center",
@@ -392,7 +490,11 @@ export default function ExplorePage() {
               >
                 No internships found
               </h3>
-              <p>Try adjusting your search query or filters.</p>
+              <p>
+                {internships.length === 0
+                  ? "Check back soon for new listings from companies."
+                  : "Try adjusting your search query or filters."}
+              </p>
             </div>
           )}
         </div>

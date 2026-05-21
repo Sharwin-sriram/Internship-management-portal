@@ -23,6 +23,22 @@ const internshipSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    // Array of required skills (stored as lowercase strings)
+    skills_required: {
+      type: [String],
+      default: [],
+    },
+    // Duration (human readable, e.g. "3 months", "12 weeks")
+    duration: {
+      type: String,
+      default: "",
+    },
+    // Location mode: on-site / remote / hybrid
+    location: {
+      type: String,
+      enum: ["on-site", "remote", "hybrid"],
+      default: "remote",
+    },
     deadline: {
       type: Date,
       required: true,

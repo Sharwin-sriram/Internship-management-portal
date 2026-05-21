@@ -16,12 +16,12 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
-        <AuthProvider>
-          <AppProviders>
+        <AppProviders>
+          <AuthProvider>
             <Header />
             <main style={{ minHeight: "calc(100vh - 64px)" }}>{children}</main>
-          </AppProviders>
-        </AuthProvider>
+          </AuthProvider>
+        </AppProviders>
       </body>
     </html>
   );

@@ -31,6 +31,7 @@ const sendTokenResponse = async (user, statusCode, res, extraData = {}) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        emailVerified: Boolean(user.emailVerified),
       },
       ...extraData,
     });
@@ -120,12 +121,19 @@ export const createCompany = async (req, res) => {
 // @access  Public
 export const registerCompany = async (req, res) => {
   try {
-    const { name, email, password, company_name } = req.body;
+    const { name, email, password, company_name, industry } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
         message: "Name, email, and password are required.",
+      });
+    }
+
+    if (!industry || !String(industry).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Industry is required.",
       });
     }
 
@@ -148,7 +156,7 @@ export const registerCompany = async (req, res) => {
       user: user._id,
       company_name: company_name || "",
       legal_name: "",
-      industry: "",
+      industry: String(industry).trim(),
       size: "",
       website: "",
       primary_contact: {
@@ -223,12 +231,10 @@ export const getMyCompany = async (req, res) => {
     }
     res.status(200).json({ success: true, data: company });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while fetching company profile.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching company profile.",
+    });
   }
 };
 
@@ -250,7 +256,10 @@ export const updateMyCompany = async (req, res) => {
       industry: req.body.industry ?? company.industry,
       size: req.body.size ?? company.size,
       website: req.body.website ?? company.website,
-      primary_contact: req.body.primary_contact ?? company.primary_contact,
+      // Merge primary_contact so partial updates don't remove existing subfields (like email)
+      primary_contact: req.body.primary_contact
+        ? { ...(company.primary_contact || {}), ...req.body.primary_contact }
+        : company.primary_contact,
       logo_url: req.body.logo_url ?? company.logo_url,
       description: req.body.description ?? company.description,
       social_links: req.body.social_links ?? company.social_links,
@@ -274,12 +283,10 @@ export const updateMyCompany = async (req, res) => {
 
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while updating company profile.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while updating company profile.",
+    });
   }
 };
 
@@ -294,12 +301,10 @@ export const getCompanyRequests = async (req, res) => {
       .status(200)
       .json({ success: true, count: companies.length, data: companies });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while fetching requests.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching requests.",
+    });
   }
 };
 
@@ -329,12 +334,10 @@ export const updateCompanyApproval = async (req, res) => {
 
     res.status(200).json({ success: true, data: company });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while updating approval.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while updating approval.",
+    });
   }
 };
 
@@ -470,12 +473,10 @@ export const getCompanyDashboard = async (req, res) => {
       },
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while loading dashboard.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while loading dashboard.",
+    });
   }
 };
 
@@ -517,12 +518,10 @@ export const getMyShortlistedApplications = async (req, res) => {
 
     res.status(200).json({ success: true, data });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while loading applications.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while loading applications.",
+    });
   }
 };
 
@@ -552,6 +551,9 @@ export const getMyApplications = async (req, res) => {
 
     if (status) {
       query.status = status;
+    } else {
+      // Active pipeline only; selected/rejected move to history/archive.
+      query.status = { $nin: ["selected", "rejected"] };
     }
 
     const applications = await Application.find(query)
@@ -576,12 +578,68 @@ export const getMyApplications = async (req, res) => {
 
     res.status(200).json({ success: true, data });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while loading applications.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while loading applications.",
+    });
+  }
+};
+
+// @desc    Archived application history (selected/rejected) for company internships
+// @route   GET /api/companies/me/applications/history
+// @access  Company
+export const getMyApplicationsHistory = async (req, res) => {
+  try {
+    const company = await getCompanyForUser(req.user._id);
+    if (!company) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
+    }
+
+    const internshipIds = await Internship.find({
+      company: company._id,
+    }).distinct("_id");
+    const { internshipId, status } = req.query;
+    const query = {
+      internship: { $in: internshipIds },
+      status: { $in: ["selected", "rejected"] },
+    };
+
+    if (internshipId) {
+      query.internship = internshipId;
+    }
+
+    if (status && ["selected", "rejected"].includes(String(status))) {
+      query.status = status;
+    }
+
+    const applications = await Application.find(query)
+      .populate({
+        path: "student",
+        populate: { path: "user", select: "name email" },
+      })
+      .populate("internship", "title")
+      .sort({ last_updated: -1 })
+      .limit(300);
+
+    const data = applications.map((app) => ({
+      id: app._id,
+      studentId: app.student?._id,
+      studentName: app.student?.user?.name || "Student",
+      studentEmail: app.student?.user?.email || "",
+      roleTitle: app.internship?.title || "Internship",
+      internshipId: app.internship?._id,
+      status: app.status,
+      appliedAt: app.applied_at,
+    }));
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error while loading applications history.",
+    });
   }
 };
 
@@ -607,12 +665,10 @@ export const shortlistMyApplication = async (req, res) => {
     }
 
     if (String(application.internship?.company) !== String(company._id)) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "You can only update applications for your own internships.",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "You can only update applications for your own internships.",
+      });
     }
 
     if (application.status !== "shortlisted") {
@@ -628,12 +684,10 @@ export const shortlistMyApplication = async (req, res) => {
       },
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while shortlisting application.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while shortlisting application.",
+    });
   }
 };
 
@@ -722,12 +776,10 @@ export const getCompanyAnalytics = async (req, res) => {
       },
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while loading analytics.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while loading analytics.",
+    });
   }
 };
 
@@ -744,12 +796,10 @@ export const getRecruiters = async (req, res) => {
     }
     res.status(200).json({ success: true, data: company.recruiters || [] });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while fetching recruiters.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching recruiters.",
+    });
   }
 };
 
@@ -760,12 +810,10 @@ export const addRecruiter = async (req, res) => {
   try {
     const { name, email, phone, title } = req.body;
     if (!name || !email) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Recruiter name and email are required.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Recruiter name and email are required.",
+      });
     }
 
     const company = await getCompanyForUser(req.user._id);
@@ -784,12 +832,10 @@ export const addRecruiter = async (req, res) => {
     await company.save();
     res.status(201).json({ success: true, data: company.recruiters });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while adding recruiter.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while adding recruiter.",
+    });
   }
 };
 
@@ -811,12 +857,10 @@ export const removeRecruiter = async (req, res) => {
     await company.save();
     res.status(200).json({ success: true, data: company.recruiters });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while removing recruiter.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while removing recruiter.",
+    });
   }
 };
 
@@ -868,12 +912,10 @@ export const searchTalent = async (req, res) => {
 
     res.status(200).json({ success: true, count: data.length, data });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while searching talent.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while searching talent.",
+    });
   }
 };
 
@@ -910,12 +952,10 @@ export const requestTalentUnlock = async (req, res) => {
     });
     res.status(201).json({ success: true, data: request });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while requesting unlock.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while requesting unlock.",
+    });
   }
 };
 
@@ -938,12 +978,10 @@ export const listTalentUnlockRequests = async (req, res) => {
       .status(200)
       .json({ success: true, count: requests.length, data: requests });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while fetching requests.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching requests.",
+    });
   }
 };
 
@@ -966,12 +1004,10 @@ export const approveTalentUnlockRequest = async (req, res) => {
 
     res.status(200).json({ success: true, data: request });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while approving request.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while approving request.",
+    });
   }
 };
 
@@ -994,11 +1030,9 @@ export const rejectTalentUnlockRequest = async (req, res) => {
 
     res.status(200).json({ success: true, data: request });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while rejecting request.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while rejecting request.",
+    });
   }
 };
