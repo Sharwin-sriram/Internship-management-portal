@@ -695,6 +695,56 @@ export const shortlistMyApplication = async (req, res) => {
   }
 };
 
+// @desc    Reject a company application directly
+// @route   PATCH /api/companies/me/applications/:applicationId/reject
+// @access  Company
+export const rejectMyApplication = async (req, res) => {
+  try {
+    const company = await getCompanyForUser(req.user._id);
+    if (!company) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
+    }
+
+    const application = await Application.findById(
+      req.params.applicationId,
+    ).populate("internship", "company title");
+    if (!application) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Application not found." });
+    }
+
+    if (String(application.internship?.company) !== String(company._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only update applications for your own internships.",
+      });
+    }
+
+    const { rejection_reason } = req.body;
+
+    application.status = "rejected";
+    application.rejection_reason = rejection_reason || "";
+    await application.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: application._id,
+        status: application.status,
+        rejection_reason: application.rejection_reason,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error while rejecting application.",
+    });
+  }
+};
+
 // @desc    Get company analytics
 // @route   GET /api/companies/me/analytics
 // @access  Company

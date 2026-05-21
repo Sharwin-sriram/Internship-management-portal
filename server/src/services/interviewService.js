@@ -464,6 +464,7 @@ export async function completeInterviewWithDecision({
   companyUser,
   decision,
   notes = "",
+  rejectionReason = "",
 }) {
   const company = await resolveCompanyFromUser(companyUser._id);
   if (!company) {
@@ -508,6 +509,9 @@ export async function completeInterviewWithDecision({
   await interview.save();
 
   application.status = decision;
+  if (decision === "rejected") {
+    application.rejection_reason = rejectionReason || "";
+  }
   await application.save();
 
   return populateInterview(interview._id);

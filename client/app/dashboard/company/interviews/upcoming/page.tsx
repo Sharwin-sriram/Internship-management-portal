@@ -86,6 +86,8 @@ export default function UpcomingCompanyInterviewsPage() {
   const [editInterviewerById, setEditInterviewerById] = useState<
     Record<string, string>
   >({});
+  const [rejectModalOpenId, setRejectModalOpenId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const loadRecruiters = useCallback(async () => {
     setRecruitersLoading(true);
@@ -160,10 +162,10 @@ export default function UpcomingCompanyInterviewsPage() {
       );
   }, [records]);
 
-  const markComplete = async (id: string, decision: Decision) => {
+  const markComplete = async (id: string, decision: Decision, rejectionReasonVal?: string) => {
     setBusyId(id);
     try {
-      await interviewApi.completeInterview(id, decision, notesById[id]);
+      await interviewApi.completeInterview(id, decision, notesById[id], rejectionReasonVal);
       showToast(
         decision === "selected"
           ? "Marked completed — candidate selected"
@@ -548,21 +550,22 @@ export default function UpcomingCompanyInterviewsPage() {
                     >
                       <FiCheckCircle /> Complete + Select
                     </Button>
-                    <Button
-                      variant="danger"
-                      loading={busyId === i._id}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        markComplete(i._id, "rejected");
-                      }}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <FiXCircle /> Complete + Reject
-                    </Button>
+                     <Button
+                       variant="danger"
+                       loading={busyId === i._id}
+                       onClick={(event) => {
+                         event.stopPropagation();
+                         setRejectModalOpenId(i._id);
+                         setRejectionReason("");
+                       }}
+                       style={{
+                         display: "inline-flex",
+                         alignItems: "center",
+                         gap: 8,
+                       }}
+                     >
+                       <FiXCircle /> Complete + Reject
+                     </Button>
                   </div>
                 </div>
               </div>
@@ -736,24 +739,98 @@ export default function UpcomingCompanyInterviewsPage() {
                 >
                   <FiCheckCircle /> Complete + Select
                 </Button>
-                <Button
-                  variant="danger"
-                  loading={busyId === selectedInterview._id}
-                  onClick={() =>
-                    markComplete(selectedInterview._id, "rejected")
-                  }
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <FiXCircle /> Complete + Reject
-                </Button>
+                 <Button
+                   variant="danger"
+                   loading={busyId === selectedInterview._id}
+                   onClick={() => {
+                     setRejectModalOpenId(selectedInterview._id);
+                     setRejectionReason("");
+                     setEditOpenId(null);
+                   }}
+                   style={{
+                     display: "inline-flex",
+                     alignItems: "center",
+                     gap: 8,
+                   }}
+                 >
+                   <FiXCircle /> Complete + Reject
+                 </Button>
               </div>
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={rejectModalOpenId !== null}
+        onClose={() => {
+          setRejectModalOpenId(null);
+          setRejectionReason("");
+        }}
+        title="Complete Interview & Reject"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <p style={{ margin: 0, color: "#475569" }}>
+            Please provide a reason for rejecting the candidate. This reason will be shared with the student on their tracking dashboard.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              htmlFor="interview-rejection-reason"
+              style={{
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                color: "#0f172a",
+              }}
+            >
+              Rejection Reason
+            </label>
+            <textarea
+              id="interview-rejection-reason"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="e.g., Candidate needs stronger React foundational skills."
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1.5px solid #cbd5e1",
+                fontSize: "1rem",
+                color: "#0f172a",
+                background: "#fff",
+                outline: "none",
+                resize: "vertical",
+                minHeight: "80px",
+                fontFamily: "inherit",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setRejectModalOpenId(null);
+                setRejectionReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={busyId === rejectModalOpenId}
+              onClick={() => {
+                if (rejectModalOpenId) {
+                  void markComplete(rejectModalOpenId, "rejected", rejectionReason).then(() => {
+                    setRejectModalOpenId(null);
+                    setRejectionReason("");
+                  });
+                }
+              }}
+            >
+              Reject Candidate
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
