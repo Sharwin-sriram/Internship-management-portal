@@ -18,6 +18,7 @@ interface CompanyProfileForm {
     title: string;
   };
   description: string;
+  address: string;
 }
 
 const ensureHttpsPrefix = (value: string) => {
@@ -40,6 +41,7 @@ export default function CompanyProfilePage() {
     website: "",
     primary_contact: { name: "", email: "", phone: "", title: "" },
     description: "",
+    address: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -93,6 +95,7 @@ export default function CompanyProfilePage() {
             title: data.primary_contact?.title || "",
           },
           description: data.description || "",
+          address: data.address || "",
         });
       }
       setLoading(false);
@@ -414,6 +417,23 @@ export default function CompanyProfilePage() {
               padding: "12px 14px",
               borderRadius: 10,
               border: "1px solid #e2e8f0",
+            }}
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          <label style={{ fontWeight: 600 }}>Company Address</label>
+          <textarea
+            value={form.address || ""}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, address: e.target.value }))
+            }
+            rows={2}
+            style={{
+              padding: "12px 14px",
+              borderRadius: 10,
+              border: "1px solid #e2e8f0",
+              resize: "vertical",
             }}
           />
         </div>

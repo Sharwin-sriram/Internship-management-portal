@@ -27,6 +27,10 @@ const companySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    address: {
+      type: String,
+      default: "",
+    },
     primary_contact: {
       name: {
         type: String,

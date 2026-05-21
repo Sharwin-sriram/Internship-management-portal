@@ -32,7 +32,7 @@ const resolveOfferLetterContext = async (offerLetter) => {
     const application = await Application.findById(offerLetter.application)
       .populate({
         path: "student",
-        populate: { path: "user", select: "name email" },
+        populate: { path: "user", select: "name email phone" },
       })
       .populate({
         path: "internship",
@@ -55,10 +55,45 @@ const resolveOfferLetterContext = async (offerLetter) => {
   }
 
   if (studentUserId && (!studentName || !studentEmail)) {
-    const user = await User.findById(studentUserId).select("name email");
+    const user = await User.findById(studentUserId).select("name email phone");
     if (user) {
       studentName = studentName || user.name;
       studentEmail = studentEmail || user.email;
+    }
+  }
+
+  // Load candidate address and phone
+  let studentAddress = "123 Anywhere St., Any City ST 1234";
+  let studentPhone = "";
+  if (studentUserId) {
+    const studentDoc = await Student.findOne({ user: studentUserId });
+    if (studentDoc) {
+      if (studentDoc.address) {
+        studentAddress = studentDoc.address;
+      }
+    }
+    const userDoc = await User.findById(studentUserId).select("phone");
+    if (userDoc && userDoc.phone) {
+      studentPhone = userDoc.phone;
+    }
+  }
+
+  // Load company contact details
+  let companyAddress = "123 Anywhere St., Any City";
+  let companyPhone = "+123-456-7890";
+  let companyEmail = "hello@reallygreatsite.com";
+  if (companyId) {
+    const companyDoc = await Company.findById(companyId);
+    if (companyDoc) {
+      if (companyDoc.address) {
+        companyAddress = companyDoc.address;
+      }
+      if (companyDoc.primary_contact?.phone) {
+        companyPhone = companyDoc.primary_contact.phone;
+      }
+      if (companyDoc.primary_contact?.email) {
+        companyEmail = companyDoc.primary_contact.email;
+      }
     }
   }
 
@@ -66,8 +101,13 @@ const resolveOfferLetterContext = async (offerLetter) => {
     studentUserId: studentUserId ? String(studentUserId) : null,
     studentName: studentName || "Student",
     studentEmail: studentEmail || null,
+    studentAddress,
+    studentPhone,
     companyId: companyId ? String(companyId) : null,
     companyName: companyName || "Company",
+    companyAddress,
+    companyPhone,
+    companyEmail,
     position: position || "Intern",
   };
 };
@@ -328,12 +368,19 @@ export const generateOfferLetterPDFHandler = async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      signatureType = "default",
+      signatureType = "upload",
       signatureImage = null,
       hrContact = null,
       expirationDate = null,
       date = null
     } = req.body;
+
+    if (!signatureImage) {
+      return res.status(400).json({
+        success: false,
+        message: "Company signature image is required to generate the PDF. Please upload a signature image first.",
+      });
+    }
 
     const offerLetter = await OfferLetter.findById(id)
       .populate("student")
@@ -375,7 +422,11 @@ export const generateOfferLetterPDFHandler = async (req, res) => {
     const pdfUrl = await generateOfferLetterPDF({
       application: id,
       studentName: ctx.studentName,
+      studentAddress: ctx.studentAddress,
       companyName: ctx.companyName,
+      companyAddress: ctx.companyAddress,
+      companyPhone: ctx.companyPhone,
+      companyEmail: ctx.companyEmail,
       position: ctx.position,
       salary: offerLetter.custom_details?.salary ?? 0,
       duration: offerLetter.custom_details?.duration ?? 0,

@@ -23,6 +23,10 @@ const studentSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    address: {
+      type: String,
+      default: "",
+    },
     skills: [
       {
         type: String,

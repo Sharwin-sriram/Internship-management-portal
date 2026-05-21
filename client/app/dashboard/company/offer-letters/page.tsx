@@ -20,6 +20,8 @@ interface Application {
   internshipId: string;
   status: string;
   appliedAt: string;
+  studentAddress?: string;
+  studentPhone?: string;
 }
 
 interface ApiResponse<T = any> {
@@ -53,9 +55,12 @@ export default function OfferLetterGenerator() {
       "Develop software features\nCollaborate with team\nParticipate in code reviews",
     benefits:
       "Health insurance\nFlexible working hours\nLearning opportunities",
+    companyPhone: "",
+    companyEmail: "",
+    companyAddress: "",
   });
 
-  const [signatureType, setSignatureType] = useState<'default' | 'upload'>('default');
+  const [signatureType, setSignatureType] = useState<'upload'>('upload');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string>('');
 
@@ -138,6 +143,9 @@ export default function OfferLetterGenerator() {
             hrContact: profile.primary_contact?.name
               ? `${profile.primary_contact.name}${profile.primary_contact.title ? `, ${profile.primary_contact.title}` : ""}`
               : prev.hrContact,
+            companyPhone: profile.primary_contact?.phone || "",
+            companyEmail: profile.primary_contact?.email || "",
+            companyAddress: profile.address || "",
           }));
         }
       } catch (error) {
@@ -540,7 +548,7 @@ export default function OfferLetterGenerator() {
                         type="button"
                         onClick={() => {
                           setSignatureImage(null);
-                          setSignatureType('default');
+                          setSignatureType('upload');
                         }}
                         style={{
                           background: 'none',
@@ -643,7 +651,7 @@ export default function OfferLetterGenerator() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                       <span style={{ color: '#64748B', fontWeight: 500 }}>To:</span>
                       <span style={{ fontWeight: 'bold', color: '#0F172A', fontSize: '13px' }}>{student.name}</span>
-                      <span style={{ color: '#64748B' }}>123 Anywhere St., Any City ST 1234</span>
+                      <span style={{ color: '#64748B' }}>{selectedApp?.studentAddress || "123 Anywhere St., Any City ST 1234"}</span>
                     </div>
                     <div style={{ textAlign: 'right', color: '#64748B' }}>
                       {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -701,27 +709,27 @@ export default function OfferLetterGenerator() {
                     <span style={{ fontSize: '12px', color: '#475569', marginBottom: '8px' }}>Sincerely,</span>
                     
                     {/* Dynamic Signature Renderer */}
-                    <div style={{ height: '55px', position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-                      {signatureType === 'default' ? (
-                        <svg viewBox="0 0 240 80" style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>
-                          <path
-                            d="M 25 45 C 15 10, 40 5, 30 40 C 20 70, 5 60, 65 42 C 75 35, 82 35, 85 50 C 90 40, 95 42, 98 50 C 102 30, 110 30, 107 50 C 112 40, 122 40, 122 52 C 118 75, 102 72, 128 45 C 136 32, 150 30, 144 50 C 140 70, 132 72, 152 46 C 156 38, 162 40, 166 48 C 174 38, 190 38, 205 50"
-                            fill="none"
-                            stroke="#0A5C36"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      ) : signatureImage ? (
+                    <div style={{ height: '55px', position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '4px', width: '100%' }}>
+                      {signatureImage ? (
                         <img
                           src={signatureImage}
                           alt="Uploaded Company Signature"
                           style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
                         />
                       ) : (
-                        <div style={{ fontSize: '11px', color: 'var(--color-muted)', fontStyle: 'italic', border: '1px dashed var(--color-border)', padding: '6px', borderRadius: '4px', textAlign: 'center', width: '100%' }}>
-                          No signature image uploaded
+                        <div style={{
+                          fontSize: '11px',
+                          color: '#EF4444',
+                          fontStyle: 'italic',
+                          border: '1px dashed #FCA5A5',
+                          background: '#FEF2F2',
+                          padding: '8px',
+                          borderRadius: '4px',
+                          textAlign: 'center',
+                          width: '100%',
+                          fontWeight: 500
+                        }}>
+                          ⚠️ Signature Image Required
                         </div>
                       )}
                     </div>
@@ -752,9 +760,9 @@ export default function OfferLetterGenerator() {
                   flexDirection: 'column',
                   gap: '1px'
                 }}>
-                  <span style={{ fontWeight: 600, color: '#334155' }}>+123-456-7890</span>
-                  <span style={{ color: '#0A5C36', fontWeight: 600 }}>hello@reallygreatsite.com</span>
-                  <span>123 Anywhere St., Any City</span>
+                  <span style={{ fontWeight: 600, color: '#334155' }}>{customFields.companyPhone || "+123-456-7890"}</span>
+                  <span style={{ color: '#0A5C36', fontWeight: 600 }}>{customFields.companyEmail || "hello@reallygreatsite.com"}</span>
+                  <span>{customFields.companyAddress || "123 Anywhere St., Any City"}</span>
                 </div>
               </div>
             </div>
@@ -762,7 +770,7 @@ export default function OfferLetterGenerator() {
             <div style={{ display: "flex", gap: "var(--space-md)" }}>
               <button
                 onClick={handleGeneratePDF}
-                disabled={generating || !selectedApplication}
+                disabled={generating || !selectedApplication || !signatureImage}
                 style={{
                   flex: 1,
                   padding: "12px 20px",
@@ -771,12 +779,12 @@ export default function OfferLetterGenerator() {
                   border: "1px solid var(--color-border)",
                   borderRadius: "var(--radius)",
                   fontWeight: 600,
-                  cursor: generating || !selectedApplication ? "not-allowed" : "pointer",
+                  cursor: generating || !selectedApplication || !signatureImage ? "not-allowed" : "pointer",
                   transition: "all var(--transition-fast)",
-                  opacity: generating || !selectedApplication ? 0.6 : 1,
+                  opacity: generating || !selectedApplication || !signatureImage ? 0.6 : 1,
                 }}
-                onMouseEnter={(e) => !generating && selectedApplication && (e.currentTarget.style.background = "#f9fafb")}
-                onMouseLeave={(e) => !generating && selectedApplication && (e.currentTarget.style.background = "white")}
+                onMouseEnter={(e) => !generating && selectedApplication && signatureImage && (e.currentTarget.style.background = "#f9fafb")}
+                onMouseLeave={(e) => !generating && selectedApplication && signatureImage && (e.currentTarget.style.background = "white")}
               >
                 {generating ? "Processing..." : "📄 Generate PDF"}
               </button>

@@ -84,6 +84,7 @@ export const getProfile = async (req, res) => {
           location: company.office_locations?.[0]?.city || "",
           industry: company.industry || "",
           logo: company.logo_url || "",
+          address: company.address || "",
         };
       }
     }
@@ -158,7 +159,7 @@ export const getProfileById = async (req, res) => {
 // @access  Private
 export const updateProfile = async (req, res) => {
   try {
-    const { name, avatar, studentDetails, companyDetails } = req.body;
+    const { name, avatar, phone, studentDetails, companyDetails } = req.body;
 
     // Debug: log incoming profile update fields (avoid logging large avatar data)
     try {
@@ -184,6 +185,7 @@ export const updateProfile = async (req, res) => {
     const updateObj = {};
     if (name !== undefined) updateObj.name = name;
     if (avatar !== undefined) updateObj.avatar = avatar;
+    if (phone !== undefined) updateObj.phone = phone.trim();
 
     // Update base user
     const updatedUser = await User.findByIdAndUpdate(
@@ -248,6 +250,9 @@ export const updateProfile = async (req, res) => {
       if (typeof studentDetails.github_url === "string") {
         studentUpdate.github_url = studentDetails.github_url.trim();
       }
+      if (typeof studentDetails.address === "string") {
+        studentUpdate.address = studentDetails.address.trim();
+      }
       if (Array.isArray(studentDetails.projects)) {
         studentUpdate.projects = studentDetails.projects;
       }
@@ -283,6 +288,7 @@ export const updateProfile = async (req, res) => {
         website: companyDetails.website,
         industry: companyDetails.industry,
         logo_url: companyDetails.logo,
+        address: companyDetails.address || "",
         office_locations: companyDetails.location
           ? [
               {
