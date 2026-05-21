@@ -150,23 +150,6 @@ export const updateInterviewStatus = async (req, res) => {
   }
 };
 
-// POST /api/interviews/:id/complete
-export const completeInterview = async (req, res) => {
-  try {
-    const decision = req.body.decision;
-    const notes = req.body.notes || "";
-    const interview = await interviewService.completeInterviewWithDecision({
-      interviewId: req.params.id,
-      companyUser: req.user,
-      decision,
-      notes,
-    });
-    return sendSuccess(res, { data: interview });
-  } catch (error) {
-    return handleServiceError(res, error);
-  }
-};
-
 // POST /api/interviews/:id/accept
 export const acceptInterview = async (req, res) => {
   try {
@@ -205,31 +188,6 @@ export const requestReschedule = async (req, res) => {
       action: "reschedule",
       reason: req.body.reason,
     });
-    return sendSuccess(res, { data: interview });
-  } catch (error) {
-    return handleServiceError(res, error);
-  }
-};
-
-// PATCH /api/interviews/:id/reschedule-company
-export const rescheduleInterviewCompany = async (req, res) => {
-  try {
-    const scheduledAt = parseScheduledAt(req.body);
-    if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
-      return sendError(res, { message: "Invalid date or time" }, 400);
-    }
-
-    const interview = await interviewService.rescheduleInterviewByCompany({
-      interviewId: req.params.id,
-      companyUser: req.user,
-      scheduledAt,
-      interviewDate: req.body.interview_date || req.body.date || scheduledAt,
-      interviewTime: req.body.interview_time || req.body.time || "",
-      meetingLink: req.body.meeting_link || "",
-      instructions: req.body.instructions || "",
-      interviewerId: req.body.interviewer_id || null,
-    });
-
     return sendSuccess(res, { data: interview });
   } catch (error) {
     return handleServiceError(res, error);

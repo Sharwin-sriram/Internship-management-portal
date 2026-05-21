@@ -11,10 +11,6 @@ import {
   changeEmail,
   reauthenticate,
 } from '../controllers/auth.controller.js';
-import {
-  requestEmailVerification,
-  confirmEmailVerification,
-} from '../controllers/emailVerificationController.js';
 import { protect } from '../middlewares/auth.js';
 
 const router = express.Router();
@@ -58,11 +54,9 @@ const validationErrorHandler = (req, res, next) => {
 // Public routes
 router.post('/register', registerValidation, validationErrorHandler, register);
 router.post('/login', loginValidation, validationErrorHandler, login);
-router.get('/verify-email', confirmEmailVerification);
 
 // Protected auth routes
 router.get('/me', protect, getMe);
-router.post('/verify-email/request', protect, requestEmailVerification);
 router.post('/logout', protect, logout);
 router.put('/password', protect, passwordChangeValidation, validationErrorHandler, changePassword);
 router.put('/email', protect, emailChangeValidation, validationErrorHandler, changeEmail);

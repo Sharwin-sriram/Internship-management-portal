@@ -22,26 +22,9 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
+      required: [true, "Please add a password"],
       minlength: [6, "Password must be at least 6 characters"],
-      select: false,
-      required: function () {
-        return !this.googleId && !this.githubId;
-      },
-    },
-    googleId: {
-      type: String,
-      sparse: true,
-      unique: true,
-    },
-    githubId: {
-      type: String,
-      sparse: true,
-      unique: true,
-    },
-    authProvider: {
-      type: String,
-      enum: ["local", "google", "github"],
-      default: "local",
+      select: false, // Don't return password by default
     },
     role: {
       type: String,
@@ -76,10 +59,12 @@ const userSchema = new mongoose.Schema(
 
 // Hash password before saving
 userSchema.pre("save", async function () {
-  if (!this.isModified("password") || !this.password) {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified("password")) {
     return;
   }
 
+  // Hash password with cost factor of 12
   const salt = await bcrypt.genSalt(
     parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12,
   );

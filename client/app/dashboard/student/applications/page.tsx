@@ -48,7 +48,9 @@ export default function StudentApplicationsPage() {
           // Fetch from /api/job-applications using the client API helper
           const res = await getJson<{ success: boolean; data: JobApplicationData[] }>('/job-applications');
           if (res.ok && res.body?.success) {
-            setApplications(res.body.data);
+            // Filter applications by user email to show only current student's applications
+            const filtered = res.body.data.filter(app => app.email.toLowerCase() === user.email.toLowerCase());
+            setApplications(filtered);
           }
         } catch (error) {
           console.error('Error fetching applications:', error);
@@ -121,7 +123,7 @@ export default function StudentApplicationsPage() {
         </div>
         <Button 
           variant="primary" 
-          onClick={() => router.push('/explore')}
+          onClick={() => router.push('/dashboard/student/applications/apply')}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
         >
           <FiPlus /> Apply for Internship
@@ -234,7 +236,7 @@ export default function StudentApplicationsPage() {
           </p>
           <Button 
             variant="primary" 
-            onClick={() => router.push('/explore')}
+            onClick={() => router.push('/dashboard/student/applications/apply')}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
           >
             <FiPlus /> Apply for Internship

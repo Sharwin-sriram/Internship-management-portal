@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FiDownload, FiMapPin, FiMail, FiBriefcase, FiAward, FiBookOpen, FiChevronLeft, FiCheckCircle } from 'react-icons/fi';
-import { SiGithub, SiLinkedin } from 'react-icons/si';
+import { FiDownload, FiMapPin, FiMail, FiBriefcase, FiAward, FiBookOpen, FiChevronLeft } from 'react-icons/fi';
 import Button from '../../../components/ui/Button';
 import { getJson, downloadBlob } from '../../../lib/api';
 
@@ -11,7 +10,6 @@ interface StudentProfileData {
   id: string;
   name: string;
   email: string;
-  emailVerified?: boolean;
   branch: string;
   college: string;
   cgpa: number;
@@ -22,8 +20,6 @@ interface StudentProfileData {
   projects: { title: string; desc: string }[];
   resume_id: string | null;
   resume_name: string | null;
-  linkedin_url?: string;
-  github_url?: string;
 }
 
 // Mock data for demonstration purposes
@@ -45,24 +41,6 @@ const mockStudentProfile = {
   resume_url: '#', // In a real app, this would be a real URL to download the resume
 };
 
-const ensureHttpsPrefix = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-};
-
-const publicSocialBtn: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '8px 14px',
-  borderRadius: 'var(--radius)',
-  fontSize: 'var(--font-size-sm)',
-  fontWeight: 600,
-  textDecoration: 'none',
-  transition: 'opacity 0.15s',
-};
-
 export default function StudentProfilePage() {
   const params = useParams();
   const router = useRouter();
@@ -82,7 +60,6 @@ export default function StudentProfilePage() {
               id: user._id,
               name: user.name || 'Unknown User',
               email: user.email || '',
-              emailVerified: Boolean(user.emailVerified),
               branch: student.branch || '',
               college: student.college || '',
               cgpa: student.cgpa || 0,
@@ -93,8 +70,6 @@ export default function StudentProfilePage() {
               projects: student.projects || [],
               resume_id: resume ? resume.id : null,
               resume_name: resume ? resume.original_name : null,
-              linkedin_url: student.linkedin_url || '',
-              github_url: student.github_url || '',
             });
           }
         }
@@ -203,64 +178,8 @@ export default function StudentProfilePage() {
             <div style={{ width: '100%', height: 1, background: 'var(--color-border)', margin: '16px 0' }} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', textAlign: 'left', color: 'var(--color-muted)', fontSize: 'var(--font-size-sm)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                  <FiMail size={16} aria-hidden />
-                  <span>{profile.email}</span>
-                </div>
-                {profile.emailVerified ? (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      padding: '2px 8px',
-                      borderRadius: 999,
-                      background: 'rgba(34, 197, 94, 0.12)',
-                      color: '#15803d',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                    title="Email verified on InternHub"
-                  >
-                    <FiCheckCircle size={12} aria-hidden />
-                    Verified
-                  </span>
-                ) : null}
-                {profile.linkedin_url?.trim() ? (
-                  <a
-                    href={ensureHttpsPrefix(profile.linkedin_url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      ...publicSocialBtn,
-                      background: '#0A66C2',
-                      color: '#fff',
-                    }}
-                    title="Open LinkedIn profile"
-                  >
-                    <SiLinkedin size={18} aria-hidden />
-                    LinkedIn
-                  </a>
-                ) : null}
-                {profile.github_url?.trim() ? (
-                  <a
-                    href={ensureHttpsPrefix(profile.github_url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      ...publicSocialBtn,
-                      background: '#24292f',
-                      color: '#fff',
-                    }}
-                    title="Open GitHub profile"
-                  >
-                    <SiGithub size={18} aria-hidden />
-                    GitHub
-                  </a>
-                ) : null}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <FiMail size={16} /> {profile.email}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FiMapPin size={16} /> {profile.location}

@@ -42,16 +42,6 @@ const studentSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    linkedin_url: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    github_url: {
-      type: String,
-      default: "",
-      trim: true,
-    },
     projects: [
       {
         title: { type: String },

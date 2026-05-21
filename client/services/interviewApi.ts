@@ -63,36 +63,6 @@ export async function patchInterviewStatus(id: string, status: string) {
   return data;
 }
 
-export async function completeInterview(
-  id: string,
-  decision: "selected" | "rejected",
-  notes?: string,
-) {
-  const { data } = await api.post<{ data: InterviewRecord }>(
-    `/interviews/${id}/complete`,
-    { decision, notes },
-  );
-  return data;
-}
-
-export interface CompanyReschedulePayload {
-  scheduled_at: string;
-  meeting_link?: string;
-  instructions?: string;
-  interviewer_id?: string | null;
-}
-
-export async function rescheduleInterviewCompany(
-  id: string,
-  payload: CompanyReschedulePayload,
-) {
-  const { data } = await api.patch<{ data: InterviewRecord }>(
-    `/interviews/${id}/reschedule-company`,
-    payload,
-  );
-  return data;
-}
-
 export async function syncGoogleCalendar(id: string) {
   const { data } = await api.post(`/interviews/${id}/calendar/sync`);
   return data;

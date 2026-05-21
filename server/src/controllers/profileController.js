@@ -242,12 +242,6 @@ export const updateProfile = async (req, res) => {
       if (typeof studentDetails.bio === "string") {
         studentUpdate.bio = studentDetails.bio.trim();
       }
-      if (typeof studentDetails.linkedin_url === "string") {
-        studentUpdate.linkedin_url = studentDetails.linkedin_url.trim();
-      }
-      if (typeof studentDetails.github_url === "string") {
-        studentUpdate.github_url = studentDetails.github_url.trim();
-      }
       if (Array.isArray(studentDetails.projects)) {
         studentUpdate.projects = studentDetails.projects;
       }

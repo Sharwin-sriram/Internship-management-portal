@@ -7,12 +7,10 @@ import { usePathname } from "next/navigation";
 const items = [
   { href: "/dashboard/company", label: "Overview", exact: true },
   { href: "/dashboard/company/applicants", label: "Applicants" },
-  { href: "/dashboard/company/applicants/history", label: "Applicants History" },
   {
     href: "/dashboard/company/interviews/schedule",
     label: "Schedule Interviews",
   },
-  { href: "/dashboard/company/interviews/upcoming", label: "Upcoming Interviews" },
   { href: "/dashboard/company/calendar", label: "Interview Calendar" },
   { href: "/dashboard/company/recruiters", label: "Recruiting Team" },
   { href: "/dashboard/company/talent", label: "Talent Search" },
@@ -22,16 +20,6 @@ const items = [
 
 function isNavActive(pathname: string, href: string, exact?: boolean) {
   if (exact) return pathname === href;
-  
-  // Prevent a parent path from showing as active if there is a more specific registered route that matches the current pathname.
-  const hasMoreSpecificMatch = items.some(
-    (item) =>
-      item.href !== href &&
-      item.href.startsWith(href) &&
-      (pathname === item.href || pathname.startsWith(`${item.href}/`))
-  );
-  if (hasMoreSpecificMatch) return false;
-
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

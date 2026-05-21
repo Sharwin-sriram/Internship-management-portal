@@ -2,7 +2,6 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { protect, authorize } from "../middlewares/auth.js";
 import { createJobApplication, getJobApplications, getJobApplicationById } from "../controllers/jobApplicationController.js";
 
 const router = express.Router();
@@ -34,18 +33,12 @@ const fileFilter = (_req, file, cb) => {
 const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 
 // ── POST /api/job-applications ────────────────────────────────────────────────
-router.post(
-  "/",
-  protect,
-  authorize("student"),
-  upload.single("resume"),
-  createJobApplication,
-);
+router.post("/", upload.single("resume"), createJobApplication);
 
 // ── GET /api/job-applications ─────────────────────────────────────────────────
-router.get("/", protect, authorize("student"), getJobApplications);
+router.get("/", getJobApplications);
 
 // ── GET /api/job-applications/:id ─────────────────────────────────────────────
-router.get("/:id", protect, authorize("student"), getJobApplicationById);
+router.get("/:id", getJobApplicationById);
 
 export default router;

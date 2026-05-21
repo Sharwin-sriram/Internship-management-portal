@@ -57,11 +57,11 @@ export default function TrackApplicationPage({ params }: { params: Promise<{ id:
     if (user && applicationId) {
       const fetchApplication = async () => {
         try {
-          const res = await getJson<{ success: boolean; data: JobApplicationData; message?: string }>(`/job-applications/${applicationId}`);
-          if (res.ok && res.body?.success && res.body.data) {
+          const res = await getJson<{ success: boolean; data: JobApplicationData }>(`/job-applications/${applicationId}`);
+          if (res.ok && res.body?.success) {
             setApplication(res.body.data);
           } else {
-            setError(res.body?.message || (res.status === 403 ? 'You do not have access to this application.' : 'Application details not found.'));
+            setError('Application details not found.');
           }
         } catch (err) {
           console.error(err);
