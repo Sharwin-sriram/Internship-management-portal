@@ -80,7 +80,6 @@ userSchema.pre("save", async function () {
     return;
   }
 
-  // Hash password with cost factor of 12
   const salt = await bcrypt.genSalt(
     parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12,
   );

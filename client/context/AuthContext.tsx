@@ -27,7 +27,17 @@ const AuthContext = createContext<AuthContextValue>({
   refreshUser: async () => {},
 });
 
-function normalizeUser(raw: { id?: string; _id?: string; name: string; email: string; role: AuthUser['role'] }, token: string): AuthUser {
+function normalizeUser(
+  raw: {
+    id?: string;
+    _id?: string;
+    name: string;
+    email: string;
+    role: AuthUser['role'];
+    emailVerified?: boolean;
+  },
+  token: string,
+): AuthUser {
   const id = raw.id ?? (raw as { _id?: string })._id;
   return {
     id: id != null ? String(id) : '',
@@ -35,6 +45,7 @@ function normalizeUser(raw: { id?: string; _id?: string; name: string; email: st
     email: raw.email,
     role: raw.role,
     token,
+    emailVerified: Boolean(raw.emailVerified),
   };
 }
 

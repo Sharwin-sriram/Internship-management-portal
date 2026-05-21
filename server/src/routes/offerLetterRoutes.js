@@ -2,12 +2,14 @@ import express from 'express';
 import { protect, authorize } from '../middlewares/auth.js';
 import {
   generateOfferLetter,
+  generateDirectOfferLetter,
   generateOfferLetterPDFHandler,
   sendOfferLetter,
   getOfferLetter,
   getAllOfferLetters,
   acceptOfferLetter,
   rejectOfferLetter,
+  downloadOfferLetterPDF,
 } from '../controllers/offerLetterController.js';
 
 const router = express.Router();
@@ -19,11 +21,17 @@ router.use(protect);
 router.route('/generate')
   .post(authorize('coordinator', 'admin', 'company'), generateOfferLetter);
 
+router.route('/generate-direct')
+  .post(authorize('company'), generateDirectOfferLetter);
+
 router.route('/:id/generate-pdf')
   .post(authorize('coordinator', 'admin', 'company'), generateOfferLetterPDFHandler);
 
 router.route('/:id/send')
   .post(authorize('coordinator', 'admin', 'company'), sendOfferLetter);
+
+router.route('/:id/download')
+  .get(downloadOfferLetterPDF);
 
 // Routes accessible by relevant parties (auth handled in controller for private access)
 router.route('/')
