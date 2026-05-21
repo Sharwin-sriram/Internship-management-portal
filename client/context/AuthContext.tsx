@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (user && typeof window !== 'undefined') {
       const path = window.location.pathname;
-      if (path === '/login' || path === '/register') {
+      if (path === '/login' || path === '/register' || path === '/admin/login') {
         let target = '/dashboard';
         if (user.role === 'company') target = '/dashboard/company';
         else if (user.role === 'admin') target = '/dashboard/admin';
@@ -130,10 +130,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data =
         role === 'company'
           ? await authApi.loginCompany({ email, password })
-          : await authApi.loginStudent({ email, password });
+          : role === 'admin'
+            ? await authApi.loginAdmin({ email, password })
+            : await authApi.loginStudent({ email, password });
 
       if (data.success && data.token && data.user) {
         const authUser = normalizeUser(data.user as never, data.token);
+        if (role === 'admin' && authUser.role !== 'admin') {
+          return 'Access denied. Only admin accounts can sign in here.';
+        }
         saveAuth(authUser);
         setUser(authUser);
         return null;

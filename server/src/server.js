@@ -21,6 +21,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import jobApplicationRoutes from "./routes/jobApplicationRoutes.js";
 import internshipRoutes from "./routes/internshipRoutes.js";
 import industryRoutes from "./routes/industryRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 import oauthRoutes from "./routes/oauthRoutes.js";
 import { configurePassport } from "./config/passport.js";
 import {
@@ -31,8 +32,8 @@ import { initSocket } from "./services/socketService.js";
 import emailService from "./services/emailService.js";
 import logger from "./utils/logger.js";
 import envConfig from "./config/env.js";
-import { seedDefaultIndustries } from "./controllers/industryController.js";
 import { protect } from "./middlewares/auth.js";
+import { seedDefaultIndustries } from "./controllers/industryController.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -91,6 +92,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/job-applications", jobApplicationRoutes);
 app.use("/api/internships", internshipRoutes);
 app.use("/api/industries", industryRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -233,8 +235,21 @@ const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
 
     if (!started) {
       started = true;
-      await initSocket(httpServer);
-      await emailService.verifyConnection();
+      try {
+        await initSocket(httpServer);
+      } catch (socketErr) {
+        logger.error(`Socket.IO init failed: ${socketErr.message}`);
+      }
+      try {
+        await emailService.verifyConnection();
+      } catch (emailErr) {
+        logger.error(`Email verify failed: ${emailErr.message}`);
+      }
+      try {
+        await seedDefaultIndustries();
+      } catch (industryErr) {
+        logger.error(`Industry seed failed: ${industryErr.message}`);
+      }
       startTokenCleanup();
       startInterviewReminderScheduler();
     }
