@@ -7,6 +7,8 @@ import Button from "../../../../components/ui/Button";
 import { useProtectedRoute } from "../../../../hooks/useProtectedRoute";
 import { useToast } from "../../../../context/ToastContext";
 import { getJson, patchJson } from "../../../../lib/api";
+import Modal from "../../../../components/ui/Modal";
+
 
 type CompanyApplication = {
   id: string;
@@ -33,6 +35,8 @@ function CompanyApplicantsContent() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
   const [error, setError] = useState("");
   const [selectedInternshipId, setSelectedInternshipId] = useState(
     searchParams.get("internshipId") || "",
@@ -125,6 +129,38 @@ function CompanyApplicantsContent() {
       const message = (res.body as { message?: string } | null)?.message;
       setError(message || "Unable to shortlist candidate.");
       showToast(message || "Unable to shortlist candidate.", "error");
+    }
+
+    setUpdatingId(null);
+  }
+
+  async function handleReject(applicationId: string) {
+    if (!applicationId) return;
+    setUpdatingId(applicationId);
+    setError("");
+
+    const res = await patchJson<{
+      success: boolean;
+      data: { id: string; status: string; rejection_reason?: string };
+    }>(`/companies/me/applications/${applicationId}/reject`, {
+      rejection_reason: rejectionReason,
+    });
+
+    if (res.ok && res.body?.success) {
+      setApplications((prev) =>
+        prev.map((application) =>
+          application.id === applicationId
+            ? { ...application, status: "rejected" }
+            : application,
+        ),
+      );
+      showToast("Candidate rejected", "success");
+      setRejectingId(null);
+      setRejectionReason("");
+    } else {
+      const message = (res.body as { message?: string } | null)?.message;
+      setError(message || "Unable to reject candidate.");
+      showToast(message || "Unable to reject candidate.", "error");
     }
 
     setUpdatingId(null);
@@ -306,11 +342,15 @@ function CompanyApplicantsContent() {
                       background:
                         application.status === "shortlisted"
                           ? "rgba(16,185,129,0.12)"
-                          : "rgba(59,130,246,0.12)",
+                          : application.status === "rejected"
+                            ? "rgba(239,68,68,0.12)"
+                            : "rgba(59,130,246,0.12)",
                       color:
                         application.status === "shortlisted"
                           ? "#10b981"
-                          : "#2563eb",
+                          : application.status === "rejected"
+                            ? "#ef4444"
+                            : "#2563eb",
                     }}
                   >
                     {application.status}
@@ -333,26 +373,40 @@ function CompanyApplicantsContent() {
                     >
                       View profile
                     </Button>
-                    {application.status !== "shortlisted" && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        loading={updatingId === application.id}
-                        onClick={() => handleShortlist(application.id)}
-                      >
-                        Shortlist
-                      </Button>
-                    )}
-                    {application.status === "shortlisted" && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() =>
-                          router.push("/dashboard/company/interviews/schedule")
-                        }
-                      >
-                        Schedule interview
-                      </Button>
+                    {application.status !== "rejected" && (
+                      <>
+                        {application.status !== "shortlisted" && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            loading={updatingId === application.id}
+                            onClick={() => handleShortlist(application.id)}
+                          >
+                            Shortlist
+                          </Button>
+                        )}
+                        {application.status === "shortlisted" && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              router.push("/dashboard/company/interviews/schedule")
+                            }
+                          >
+                            Schedule interview
+                          </Button>
+                        )}
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => {
+                            setRejectingId(application.id);
+                            setRejectionReason("");
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -389,6 +443,70 @@ function CompanyApplicantsContent() {
           Continue to interview scheduling →
         </Link>
       </div>
+      <Modal
+        isOpen={rejectingId !== null}
+        onClose={() => {
+          setRejectingId(null);
+          setRejectionReason("");
+        }}
+        title="Reject Candidate"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <p style={{ margin: 0, color: "#475569" }}>
+            Are you sure you want to reject this candidate? Please provide a reason for the rejection (optional but recommended to help the candidate improve).
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              htmlFor="rejection-reason"
+              style={{
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                color: "#0f172a",
+              }}
+            >
+              Rejection Reason
+            </label>
+            <textarea
+              id="rejection-reason"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="e.g., Low match on requested React/Node skills"
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1.5px solid #cbd5e1",
+                fontSize: "1rem",
+                color: "#0f172a",
+                background: "#fff",
+                outline: "none",
+                resize: "vertical",
+                minHeight: "80px",
+                fontFamily: "inherit",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setRejectingId(null);
+                setRejectionReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={updatingId === rejectingId}
+              onClick={() => rejectingId && handleReject(rejectingId)}
+            >
+              Reject Candidate
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
