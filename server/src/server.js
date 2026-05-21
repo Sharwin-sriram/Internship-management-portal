@@ -19,6 +19,8 @@ import exportRoutes from "./routes/exportRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import jobApplicationRoutes from "./routes/jobApplicationRoutes.js";
+import oauthRoutes from "./routes/oauthRoutes.js";
+import { configurePassport } from "./config/passport.js";
 import {
   startTokenCleanup,
   startInterviewReminderScheduler,
@@ -39,6 +41,9 @@ const PORT = envConfig.PORT || process.env.PORT;
 
 // Connect to Database
 connectDB();
+
+// OAuth strategies (Google, GitHub)
+configurePassport();
 
 // Middleware
 app.use(cors());
@@ -64,6 +69,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/oauth", oauthRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/password-reset", passwordResetRoutes);
 app.use("/api/profile", profileRoutes);
@@ -153,6 +159,7 @@ app.use((err, req, res, next) => {
 // HTTP server (required for Socket.IO)
 const httpServer = http.createServer(app);
 let started = false;
+const MAX_PORT_RETRIES = 5;
 
 const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
   const onError = (err) => {
@@ -179,7 +186,6 @@ const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
 
     if (!started) {
       started = true;
-      await seedDefaultIndustries();
       await initSocket(httpServer);
       await emailService.verifyConnection();
       startTokenCleanup();
@@ -189,7 +195,7 @@ const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
 };
 
 // Start server
-startServer(BASE_PORT);
+startServer(PORT);
 
 const server = httpServer;
 
