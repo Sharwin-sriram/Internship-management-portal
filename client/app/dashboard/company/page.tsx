@@ -296,7 +296,8 @@ export default function CompanyDashboardPage() {
     fontSize: "0.95rem",
     color: "#0f172a",
     outline: "none",
-    boxShadow: focusedField === fieldName ? "0 0 0 4px rgba(37,99,235,0.08)" : "none",
+    boxShadow:
+      focusedField === fieldName ? "0 0 0 4px rgba(37,99,235,0.08)" : "none",
     transition: "border-color 0.2s ease, box-shadow 0.2s ease",
     fontFamily: "inherit",
   });
@@ -457,8 +458,6 @@ export default function CompanyDashboardPage() {
         </button>
       </div>
 
-
-
       {/* Company Postings */}
       <section style={{ marginBottom: "2.5rem" }}>
         <h2
@@ -578,7 +577,9 @@ export default function CompanyDashboardPage() {
                       !confirm("Delete this internship? This cannot be undone.")
                     )
                       return;
-                    const res = await deleteJson(`/internships/${i._id}`);
+                    const res = await deleteJson<{ success: boolean }>(
+                      `/internships/${i._id}`,
+                    );
                     if (res.ok && res.body?.success) {
                       setInternships((prev) =>
                         prev.filter((x) => x._id !== i._id),
@@ -626,7 +627,8 @@ export default function CompanyDashboardPage() {
               background: "#fff",
               borderRadius: 20,
               padding: "28px",
-              boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+              boxShadow:
+                "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
               position: "relative",
               border: "1px solid rgba(148,174,254,0.15)",
               animation: "modalFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
@@ -646,11 +648,36 @@ export default function CompanyDashboardPage() {
                 }
               }
             `}</style>
-            
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", flexShrink: 0 }}>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                marginBottom: "20px",
+                flexShrink: 0,
+              }}
+            >
               <div>
-                <h3 style={{ margin: 0, fontSize: "1.35rem", fontWeight: 800, color: "#0f172a" }}>Edit Internship</h3>
-                <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#64748b" }}>Update posting details and candidate requirements.</p>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "1.35rem",
+                    fontWeight: 800,
+                    color: "#0f172a",
+                  }}
+                >
+                  Edit Internship
+                </h3>
+                <p
+                  style={{
+                    margin: "4px 0 0",
+                    fontSize: "0.85rem",
+                    color: "#64748b",
+                  }}
+                >
+                  Update posting details and candidate requirements.
+                </p>
               </div>
               <button
                 type="button"
@@ -685,8 +712,22 @@ export default function CompanyDashboardPage() {
               </button>
             </div>
 
-            <div style={{ flex: 1, overflowY: "auto", paddingRight: "8px", marginBottom: "4px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px", paddingBottom: "8px" }}>
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                paddingRight: "8px",
+                marginBottom: "4px",
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gap: "16px",
+                  paddingBottom: "8px",
+                }}
+              >
                 <div style={{ gridColumn: "span 2" }}>
                   <label style={labelStyle}>Internship Title</label>
                   <input
@@ -711,12 +752,18 @@ export default function CompanyDashboardPage() {
                     }
                     onFocus={() => setFocusedField("description")}
                     onBlur={() => setFocusedField(null)}
-                    style={{ ...getFieldStyle("description"), minHeight: 110, resize: "vertical" }}
+                    style={{
+                      ...getFieldStyle("description"),
+                      minHeight: 110,
+                      resize: "vertical",
+                    }}
                   />
                 </div>
 
                 <div style={{ gridColumn: "span 2" }}>
-                  <label style={labelStyle}>Required Skills (comma separated)</label>
+                  <label style={labelStyle}>
+                    Required Skills (comma separated)
+                  </label>
                   <input
                     placeholder="e.g. Node.js, Java, Ruby on rails"
                     value={editForm.skills}
@@ -880,15 +927,14 @@ export default function CompanyDashboardPage() {
                       deadline: editForm.deadline,
                       status: editForm.status,
                     };
-                    const res = await putJson(
+                    const res = await putJson<{ success: boolean; data: any }>(
                       `/internships/${editingId}`,
                       payload,
                     );
-                    if (res.ok && res.body?.success) {
+                    const body = res.body;
+                    if (res.ok && body?.success) {
                       setInternships((prev) =>
-                        prev.map((x) =>
-                          x._id === editingId ? res.body.data : x,
-                        ),
+                        prev.map((x) => (x._id === editingId ? body.data : x)),
                       );
                       setShowEditModal(false);
                       setEditingId(null);
@@ -914,11 +960,13 @@ export default function CompanyDashboardPage() {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "#1d4ed8";
-                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(37,99,235,0.25)";
+                  e.currentTarget.style.boxShadow =
+                    "0 6px 16px rgba(37,99,235,0.25)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "#2563eb";
-                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.15)";
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 12px rgba(37,99,235,0.15)";
                 }}
               >
                 Save

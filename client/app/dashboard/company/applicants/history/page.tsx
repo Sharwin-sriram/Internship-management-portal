@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "../../../../../components/ui/Button";
 import { useProtectedRoute } from "../../../../../hooks/useProtectedRoute";
@@ -19,7 +19,7 @@ type CompanyApplication = {
 
 type CompanyInternshipOption = { _id: string; title: string };
 
-export default function CompanyApplicantsHistoryPage() {
+function CompanyApplicantsHistoryContent() {
   useProtectedRoute(["company"]);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -33,9 +33,9 @@ export default function CompanyApplicantsHistoryPage() {
   const [selectedInternshipId, setSelectedInternshipId] = useState(
     searchParams.get("internshipId") || "",
   );
-  const [statusFilter, setStatusFilter] = useState<"" | "selected" | "rejected">(
-    "",
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    "" | "selected" | "rejected"
+  >("");
 
   useEffect(() => {
     const internshipId = searchParams.get("internshipId") || "";
@@ -50,7 +50,8 @@ export default function CompanyApplicantsHistoryPage() {
       setError("");
 
       const params = new URLSearchParams();
-      if (selectedInternshipId) params.set("internshipId", selectedInternshipId);
+      if (selectedInternshipId)
+        params.set("internshipId", selectedInternshipId);
       if (statusFilter) params.set("status", statusFilter);
 
       const [appsRes, internshipsRes] = await Promise.all([
@@ -188,7 +189,9 @@ export default function CompanyApplicantsHistoryPage() {
           <select
             value={statusFilter}
             onChange={(e) =>
-              setStatusFilter((e.target.value as "" | "selected" | "rejected") || "")
+              setStatusFilter(
+                (e.target.value as "" | "selected" | "rejected") || "",
+              )
             }
             style={{
               width: "100%",
@@ -222,7 +225,9 @@ export default function CompanyApplicantsHistoryPage() {
       )}
 
       {loading ? (
-        <div style={{ padding: "3rem 0", textAlign: "center", color: "#64748b" }}>
+        <div
+          style={{ padding: "3rem 0", textAlign: "center", color: "#64748b" }}
+        >
           Loading history…
         </div>
       ) : applications.length === 0 ? (
@@ -273,7 +278,9 @@ export default function CompanyApplicantsHistoryPage() {
                   <p style={{ margin: "0 0 4px", color: "#475569" }}>
                     {application.roleTitle}
                   </p>
-                  <p style={{ margin: 0, color: "#94a3b8", fontSize: "0.9rem" }}>
+                  <p
+                    style={{ margin: 0, color: "#94a3b8", fontSize: "0.9rem" }}
+                  >
                     {application.studentEmail}
                   </p>
                 </div>
@@ -289,7 +296,8 @@ export default function CompanyApplicantsHistoryPage() {
                       application.status === "selected"
                         ? "rgba(16,185,129,0.12)"
                         : "rgba(239,68,68,0.12)",
-                    color: application.status === "selected" ? "#10b981" : "#dc2626",
+                    color:
+                      application.status === "selected" ? "#10b981" : "#dc2626",
                   }}
                 >
                   {application.status}
@@ -310,7 +318,8 @@ export default function CompanyApplicantsHistoryPage() {
                 <span>Application ID: {application.id}</span>
                 {application.appliedAt && (
                   <span>
-                    Applied: {new Date(application.appliedAt).toLocaleDateString()}
+                    Applied:{" "}
+                    {new Date(application.appliedAt).toLocaleDateString()}
                   </span>
                 )}
               </div>
@@ -322,3 +331,18 @@ export default function CompanyApplicantsHistoryPage() {
   );
 }
 
+export default function CompanyApplicantsHistoryPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{ padding: "3rem 0", textAlign: "center", color: "#64748b" }}
+        >
+          Loading history…
+        </div>
+      }
+    >
+      <CompanyApplicantsHistoryContent />
+    </Suspense>
+  );
+}
