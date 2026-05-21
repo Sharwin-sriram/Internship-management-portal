@@ -232,6 +232,7 @@ const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
 
     if (!started) {
       started = true;
+      await seedDefaultIndustries();
       await initSocket(httpServer);
       await emailService.verifyConnection();
       startTokenCleanup();
@@ -241,20 +242,7 @@ const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
 };
 
 // Start server
-httpServer.listen(PORT, async () => {
-  console.log(`http://localhost:${PORT}`);
-  console.log(
-    `[INFO] ${new Date().toISOString()}: Server running in ${envConfig.NODE_ENV || "development"} mode on port ${PORT}`,
-  );
-
-  await seedDefaultIndustries();
-  await initSocket(httpServer);
-
-  await emailService.verifyConnection();
-
-  startTokenCleanup();
-  startInterviewReminderScheduler();
-});
+startServer(BASE_PORT);
 
 const server = httpServer;
 

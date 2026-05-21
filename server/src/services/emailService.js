@@ -303,22 +303,6 @@ class EmailService {
         message: "Email is not configured on this server.",
       };
     }
-  async sendOfferLetter(to, payload) {
-    if (!to) {
-      logger.warn("Offer letter email skipped: no recipient");
-      return { success: false };
-    }
-
-    const name = payload?.name || "Candidate";
-    const company =
-      payload?.offerDetails?.company || payload?.companyName || "Company";
-    const position =
-      payload?.offerDetails?.position || payload?.position || "Intern";
-    const salary = payload?.offerDetails?.salary;
-    const expiryDate = payload?.expiryDate
-      ? new Date(payload.expiryDate).toLocaleDateString("en-IN")
-      : null;
-    const offerLetterUrl = payload?.offerLetterUrl;
 
     const mailOptions = {
       from: EMAIL_FROM,
@@ -363,6 +347,38 @@ class EmailService {
         </html>
       `,
       text: `Verify your student email on InternHub:\n${verificationUrl}\n\nLink expires in 24 hours.`,
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`Student verification email sent to ${to}`);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      logger.error(`Student verification email failed: ${error.message}`);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async sendOfferLetter(to, payload) {
+    if (!to) {
+      logger.warn("Offer letter email skipped: no recipient");
+      return { success: false };
+    }
+
+    const name = payload?.name || "Candidate";
+    const company =
+      payload?.offerDetails?.company || payload?.companyName || "Company";
+    const position =
+      payload?.offerDetails?.position || payload?.position || "Intern";
+    const salary = payload?.offerDetails?.salary;
+    const expiryDate = payload?.expiryDate
+      ? new Date(payload.expiryDate).toLocaleDateString("en-IN")
+      : null;
+    const offerLetterUrl = payload?.offerLetterUrl;
+
+    const mailOptions = {
+      from: EMAIL_FROM,
+      to,
       subject: `Offer Letter - ${company}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto;">
@@ -387,11 +403,6 @@ class EmailService {
 
     try {
       const info = await this.transporter.sendMail(mailOptions);
-      logger.info(`Student verification email sent to ${to}`);
-      return { success: true, messageId: info.messageId };
-    } catch (error) {
-      logger.error(`Student verification email failed: ${error.message}`);
-      return { success: false, message: error.message };
       logger.info(`Offer letter email sent to ${to}`);
       return { success: true, messageId: info.messageId };
     } catch (error) {

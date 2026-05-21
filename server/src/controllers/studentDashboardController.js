@@ -1,6 +1,7 @@
 import Application from "../models/Application.js";
 import Student from "../models/Student.js";
 import Internship from "../models/Internship.js";
+import JobApplication from "../models/JobApplication.js";
 
 // @desc    Get student dashboard data
 // @route   GET /api/student-dashboard
@@ -50,18 +51,34 @@ export const getStudentDashboardData = async (req, res) => {
       .limit(3);
 
     // Map applications for frontend
-    const mappedApplications = applications.map((app) => ({
-      id: app._id.toString(),
-      role: app.internship?.title || "Unknown Role",
-      company: app.internship?.company?.name || "Unknown Company",
-      status: app.status === "applied" ? "Pending" :
-              app.status === "shortlisted" ? "In Review" :
-              app.status === "interviewing" ? "Interview" :
-              app.status === "selected" ? "Offer" :
-              app.status === "rejected" ? "Rejected" : "Pending",
-      date: new Date(app.applied_at).toLocaleDateString(),
-      logo: app.internship?.company?.name?.charAt(0).toUpperCase() || "C",
-    }));
+    const studentEmail = req.user.email.toLowerCase();
+    const internshipIds = applications.map((app) => app.internship?._id).filter(Boolean);
+    const jobApps = await JobApplication.find({
+      email: studentEmail,
+      internship: { $in: internshipIds }
+    }).lean();
+
+    const jobAppMap = new Map(
+      jobApps.map((ja) => [String(ja.internship), ja._id.toString()])
+    );
+
+    const mappedApplications = applications.map((app) => {
+      const internshipId = app.internship?._id ? String(app.internship._id) : "";
+      const jobAppId = jobAppMap.get(internshipId) || app._id.toString();
+      
+      return {
+        id: jobAppId,
+        role: app.internship?.title || "Unknown Role",
+        company: app.internship?.company?.name || "Unknown Company",
+        status: app.status === "applied" ? "Pending" :
+                app.status === "shortlisted" ? "In Review" :
+                app.status === "interviewing" ? "Interview" :
+                app.status === "selected" ? "Offer" :
+                app.status === "rejected" ? "Rejected" : "Pending",
+        date: new Date(app.applied_at).toLocaleDateString(),
+        logo: app.internship?.company?.name?.charAt(0).toUpperCase() || "C",
+      };
+    });
 
     const mappedRecommendations = recommendedInternships.map((internship) => ({
       id: internship._id.toString(),

@@ -530,6 +530,7 @@ export default function DashboardPage() {
               variant="ghost"
               size="sm"
               style={{ fontSize: "var(--font-size-sm)" }}
+              onClick={() => router.push("/dashboard/student/applications")}
             >
               View All <FiChevronRight />
             </Button>
@@ -541,6 +542,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={app.id}
+                    onClick={() => router.push(`/dashboard/student/applications/track/${app.id}`)}
                     style={{
                       display: "flex",
                       alignItems: "center",
