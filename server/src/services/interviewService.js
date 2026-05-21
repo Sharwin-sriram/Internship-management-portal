@@ -459,6 +459,166 @@ export async function updateInterviewStatus(interviewId, status, user) {
   return populateInterview(interview._id);
 }
 
+export async function completeInterviewWithDecision({
+  interviewId,
+  companyUser,
+  decision,
+  notes = "",
+}) {
+  const company = await resolveCompanyFromUser(companyUser._id);
+  if (!company) {
+    const err = new Error("Company profile not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const interview = await Interview.findById(interviewId);
+  if (!interview || interview.company.toString() !== company._id.toString()) {
+    const err = new Error("Interview not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!["selected", "rejected"].includes(decision)) {
+    const err = new Error("Invalid decision");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const application = await Application.findById(interview.application);
+  if (!application) {
+    const err = new Error("Application not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Mark the round outcome for history.
+  await InterviewRound.findOneAndUpdate(
+    { application: interview.application, round_number: interview.round_number },
+    {
+      outcome: decision === "selected" ? "passed" : "failed",
+      notes: typeof notes === "string" ? notes : "",
+      advanced_by: companyUser._id,
+      advanced_at: new Date(),
+    },
+    { upsert: false },
+  );
+
+  interview.status = "completed";
+  await interview.save();
+
+  application.status = decision;
+  await application.save();
+
+  return populateInterview(interview._id);
+}
+
+export async function rescheduleInterviewByCompany({
+  interviewId,
+  companyUser,
+  scheduledAt,
+  interviewDate,
+  interviewTime,
+  meetingLink,
+  instructions,
+  interviewerId,
+}) {
+  const company = await resolveCompanyFromUser(companyUser._id);
+  if (!company) {
+    const err = new Error("Company profile not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const interview = await Interview.findById(interviewId).populate({
+    path: "application",
+    populate: [
+      {
+        path: "student",
+        populate: { path: "user", select: "name email" },
+      },
+      {
+        path: "internship",
+        select: "title",
+        populate: { path: "company", select: "company_name user" },
+      },
+    ],
+  });
+
+  if (!interview || interview.company.toString() !== company._id.toString()) {
+    const err = new Error("Interview not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const application = interview.application;
+  if (!application || typeof application !== "object") {
+    const err = new Error("Application not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const studentUser = application.student?.user;
+
+  const conflicts = await findSchedulingConflicts({
+    studentId: application.student._id,
+    interviewerId: interviewerId || interview.interviewer_id || null,
+    scheduledAt,
+    excludeInterviewId: interview._id,
+  });
+
+  if (conflicts.length) {
+    const err = new Error("Interview scheduling conflict detected");
+    err.statusCode = 409;
+    err.conflicts = conflicts;
+    throw err;
+  }
+
+  interview.scheduled_at = scheduledAt;
+  interview.interview_date = interviewDate || scheduledAt;
+  if (interviewTime !== undefined) interview.interview_time = interviewTime || "";
+  if (meetingLink !== undefined) interview.meeting_link = meetingLink || "";
+  if (instructions !== undefined) interview.instructions = instructions || "";
+  if (interviewerId !== undefined) interview.interviewer_id = interviewerId || null;
+  interview.status = "rescheduled";
+  interview.invitation_sent_at = new Date();
+  await interview.save();
+
+  const companyUserId = company.user?._id || company.user;
+  const studentUserId = studentUser?._id || studentUser;
+
+  const notifyPayload = {
+    interviewId: interview._id,
+    applicationId: application._id,
+    round_number: interview.round_number,
+    scheduled_at: interview.scheduled_at,
+    interview_type: interview.interview_type,
+    meeting_link: interview.meeting_link,
+    status: interview.status,
+  };
+
+  await notificationService.createInAppNotification({
+    userIds: [studentUserId],
+    event_type: "interview_rescheduled",
+    title: "Interview rescheduled",
+    message: `${company.company_name || "A company"} rescheduled your interview (Round ${interview.round_number}).`,
+    action_url: `${env.FRONTEND_URL}/dashboard/student/interviews`,
+    payload: notifyPayload,
+  });
+
+  await emailService.sendInterviewInvitation({
+    to: studentUser?.email,
+    studentName: studentUser?.name,
+    companyName: company.company_name,
+    interview,
+    meetingLink: interview.meeting_link,
+    instructions: interview.instructions,
+  });
+
+  emitInterviewScheduled(companyUserId, studentUserId, notifyPayload);
+  return populateInterview(interview._id);
+}
+
 export async function advanceToNextRound({
   interviewId,
   companyUser,

@@ -65,6 +65,28 @@ export const rescheduleRules = [
     .isLength({ max: 1000 }),
 ];
 
+export const companyRescheduleRules = [
+  ...interviewIdParam,
+  body("scheduled_at").optional().isISO8601(),
+  body("interview_date").optional().isISO8601(),
+  body("interview_time").optional().isString(),
+  body("date").optional().isISO8601(),
+  body("time").optional().isString(),
+  body("meeting_link").optional().isString().isLength({ max: 500 }),
+  body("instructions").optional().isString().isLength({ max: 2000 }),
+  body("interviewer_id").optional().isMongoId(),
+  body().custom((value, { req }) => {
+    const hasSchedule =
+      req.body.scheduled_at ||
+      (req.body.date && req.body.time) ||
+      (req.body.interview_date && req.body.interview_time);
+    if (!hasSchedule) {
+      throw new Error("scheduled_at or date+time is required");
+    }
+    return true;
+  }),
+];
+
 export const statusUpdateRules = [
   ...interviewIdParam,
   body("status")

@@ -28,6 +28,7 @@ const sendTokenResponse = async (user, statusCode, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        emailVerified: Boolean(user.emailVerified),
       },
     });
 };

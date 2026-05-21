@@ -11,7 +11,7 @@ import React, {
 } from "react";
 import { useAuth } from "./AuthContext";
 import { useToast } from "./ToastContext";
-import { SOCKET_ORIGIN } from "../lib/axios";
+import { resolveBaseUrl } from "../lib/api";
 import { getToken } from "../lib/auth";
 import type { Socket } from "socket.io-client";
 
@@ -66,29 +66,67 @@ export function InterviewSocketProvider({ children }: { children: React.ReactNod
 
     import("socket.io-client").then(({ io }) => {
       if (cancelled) return;
-      s = io(SOCKET_ORIGIN, {
-        path: "/socket.io",
-        auth: { token },
-        transports: ["websocket", "polling"],
-      });
+      
+      try {
+        const connect = async () => {
+          const apiBase = await resolveBaseUrl();
+          const socketOrigin = apiBase.replace(/\/api\/?$/, "");
+          if (cancelled) return;
+          s = io(socketOrigin, {
+          path: "/socket.io",
+          auth: { token },
+          transports: ["websocket", "polling"],
+          timeout: 5000,
+          reconnection: true,
+          reconnectionAttempts: 3,
+          reconnectionDelay: 1000,
+        });
 
-      s.on("connect", () => setConnected(true));
-      s.on("disconnect", () => setConnected(false));
+          s.on("connect", () => {
+            console.log("Socket.IO connected");
+            setConnected(true);
+          });
+        
+          s.on("disconnect", (reason) => {
+            console.log("Socket.IO disconnected:", reason);
+            setConnected(false);
+          });
 
-      const handle = (name: InterviewSocketEvent) => (payload: unknown) => {
-        setLastPayload(payload);
-        listenersRef.current.get(name)?.forEach((fn) => fn(payload));
-        if (name === "interview:invitation") showToast("New interview invitation", "info");
-        if (name === "interview:response") showToast("Interview update from candidate", "info");
-        if (name === "interview:feedback_submitted") showToast("Interview feedback submitted", "info");
-        if (name === "interview:scheduled") showToast("Interview scheduled", "info");
-      };
+          s.on("connect_error", (error) => {
+            console.warn("Socket.IO connection error:", error.message);
+            setConnected(false);
+          });
 
-      SOCKET_EVENTS.forEach((ev) => {
-        s!.on(ev, handle(ev));
-      });
+          const handle = (name: InterviewSocketEvent) => (payload: unknown) => {
+            setLastPayload(payload);
+            listenersRef.current.get(name)?.forEach((fn) => fn(payload));
+            if (name === "interview:invitation") showToast("New interview invitation", "info");
+            if (name === "interview:response") showToast("Interview update from candidate", "info");
+            if (name === "interview:feedback_submitted") showToast("Interview feedback submitted", "info");
+            if (name === "interview:scheduled") showToast("Interview scheduled", "info");
+          };
 
-      setSocket(s);
+          SOCKET_EVENTS.forEach((ev) => {
+            s!.on(ev, handle(ev));
+          });
+
+          setSocket(s);
+        };
+
+        connect().catch((error) => {
+          console.warn("Failed to resolve socket origin:", error);
+          setSocket(null);
+          setConnected(false);
+        });
+      } catch (error) {
+        console.warn("Failed to initialize Socket.IO:", error);
+        setSocket(null);
+        setConnected(false);
+      }
+    }).catch((error) => {
+      console.warn("Failed to load Socket.IO client:", error);
+      setSocket(null);
+      setConnected(false);
     });
 
     return () => {
