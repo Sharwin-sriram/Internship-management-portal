@@ -206,6 +206,7 @@ app.use((err, req, res, next) => {
 // HTTP server (required for Socket.IO)
 const httpServer = http.createServer(app);
 let started = false;
+const MAX_PORT_RETRIES = 5;
 
 const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
   const onError = (err) => {
@@ -232,7 +233,6 @@ const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
 
     if (!started) {
       started = true;
-      await seedDefaultIndustries();
       await initSocket(httpServer);
       await emailService.verifyConnection();
       startTokenCleanup();
@@ -242,7 +242,7 @@ const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
 };
 
 // Start server
-startServer(BASE_PORT);
+startServer(PORT);
 
 const server = httpServer;
 

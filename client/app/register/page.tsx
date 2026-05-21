@@ -395,6 +395,20 @@ export default function RegisterPage() {
           gap: 6px; margin-top: 20px;
           font-size: 0.75rem; color: #9ca3af; font-weight: 500;
         }
+        .social-btn {
+          display: flex; align-items: center; justify-content: center;
+          gap: 10px; padding: 12px 16px; border-radius: 10px;
+          font-weight: 600; font-size: 0.9rem; font-family: var(--font-sans);
+          cursor: pointer; transition: all 0.2s ease;
+          background: #fff; border: 1.5px solid #e4eaf3; color: #374151;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+          width: 100%;
+        }
+        .social-btn:hover {
+          background: #f9fafb; border-color: #d1d5db;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        }
         /* ── Submit button: outline at rest, solid fill on hover ── */
         .submit-btn-outline {
           width: 100%; padding: 14px 24px;
