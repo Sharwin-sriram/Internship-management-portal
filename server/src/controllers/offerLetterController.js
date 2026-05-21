@@ -327,6 +327,13 @@ export const generateDirectOfferLetter = async (req, res) => {
 export const generateOfferLetterPDFHandler = async (req, res) => {
   try {
     const { id } = req.params;
+    const {
+      signatureType = "default",
+      signatureImage = null,
+      hrContact = null,
+      expirationDate = null,
+      date = null
+    } = req.body;
 
     const offerLetter = await OfferLetter.findById(id)
       .populate("student")
@@ -350,6 +357,20 @@ export const generateOfferLetterPDFHandler = async (req, res) => {
       ? offerLetter.custom_details.benefits
       : [];
 
+    let resolvedHrContact = hrContact;
+    if (!resolvedHrContact) {
+      // Find the company profile
+      const companyProfile = await Company.findOne({ user: offerLetter.generated_by || req.user._id });
+      if (companyProfile && companyProfile.primary_contact?.name) {
+        resolvedHrContact = `${companyProfile.primary_contact.name}${companyProfile.primary_contact.title ? `, ${companyProfile.primary_contact.title}` : ""}`;
+      } else {
+        resolvedHrContact = "Teddy Yu, HRD";
+      }
+    }
+
+    const resolvedExpirationDate = expirationDate || (offerLetter.expiry_date ? new Date(offerLetter.expiry_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "N/A");
+    const resolvedDate = date || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
     // Generate PDF
     const pdfUrl = await generateOfferLetterPDF({
       application: id,
@@ -362,6 +383,11 @@ export const generateOfferLetterPDFHandler = async (req, res) => {
       startDate: offerLetter.custom_details?.start_date || new Date(),
       responsibilities,
       benefits,
+      signatureType,
+      signatureImage,
+      hrContact: resolvedHrContact,
+      expirationDate: resolvedExpirationDate,
+      date: resolvedDate,
     });
 
     // Update offer letter with PDF URL

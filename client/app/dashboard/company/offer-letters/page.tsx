@@ -200,7 +200,14 @@ export default function OfferLetterGenerator() {
       // Then, generate the PDF
       const pdfRes = await postAuthJson<ApiResponse>(
         `/offer-letters/${offerId}/generate-pdf`,
-        {},
+        {
+          signatureType,
+          signatureImage,
+          hrContact: customFields.hrContact,
+          expirationDate: customFields.expirationDate,
+          companyName: customFields.companyName,
+          date: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+        },
       );
 
       if (!pdfRes.ok || !pdfRes.body?.success) {
@@ -224,7 +231,8 @@ export default function OfferLetterGenerator() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `offer-letter-${offerId}.pdf`;
+      const candidateFileName = student.name ? student.name.replace(/\s+/g, "_") : "Candidate";
+      a.download = `${candidateFileName}_Offer_Letter.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
