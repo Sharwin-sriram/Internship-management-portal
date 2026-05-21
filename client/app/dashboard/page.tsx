@@ -219,6 +219,12 @@ export default function DashboardPage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
+    if (!authLoading && user?.role === "admin") {
+      router.push("/dashboard/admin");
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
     if (user && user.role !== "company") {
       const fetchDashboardData = async () => {
         try {
@@ -282,6 +288,7 @@ export default function DashboardPage() {
     loadingData ||
     !user ||
     user.role === "company" ||
+    user.role === "admin" ||
     !mounted
   ) {
     return (
