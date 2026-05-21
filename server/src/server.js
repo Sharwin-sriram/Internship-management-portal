@@ -38,7 +38,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load environment variables from the correct path
-dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, "../.env") });
 
 const app = express();
 const BASE_PORT = Number(envConfig.PORT || process.env.PORT || 9933);
@@ -206,7 +206,7 @@ app.use((err, req, res, next) => {
 // HTTP server (required for Socket.IO)
 const httpServer = http.createServer(app);
 let started = false;
-const MAX_PORT_RETRIES = 5;
+// const MAX_PORT_RETRIES = 5;
 
 const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
   const onError = (err) => {
@@ -242,7 +242,7 @@ const startServer = (port, retriesLeft = MAX_PORT_RETRIES) => {
 };
 
 // Start server
-startServer(PORT);
+startServer(BASE_PORT);
 
 const server = httpServer;
 
