@@ -8,13 +8,41 @@ import {
   FiEdit3,
   FiXCircle,
 } from "react-icons/fi";
+import Modal from "../../../../../components/ui/Modal";
+import {
+  FormField,
+  Input,
+  Select,
+  Textarea,
+} from "../../../../../components/ui/FormField";
 import Button from "../../../../../components/ui/Button";
 import { useProtectedRoute } from "../../../../../hooks/useProtectedRoute";
 import { useToast } from "../../../../../context/ToastContext";
+import { getJson } from "../../../../../lib/api";
 import * as interviewApi from "../../../../../services/interviewApi";
 import type { InterviewRecord } from "../../../../../types/interview";
 
 type Decision = "selected" | "rejected";
+
+type RecruiterOption = {
+  _id: string;
+  name: string;
+  email?: string;
+  title?: string;
+};
+
+function toLocalDatetimeValue(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000)
+    .toISOString()
+    .slice(0, 16);
+}
+
+function getInterviewerId(value: InterviewRecord["interviewer_id"]) {
+  if (!value || typeof value === "string") return "";
+  return value._id || "";
+}
 
 function isUpcomingInterview(i: InterviewRecord, now: number) {
   const t = new Date(i.scheduled_at).getTime();
@@ -38,16 +66,44 @@ export default function UpcomingCompanyInterviewsPage() {
   const { showToast } = useToast();
 
   const [records, setRecords] = useState<InterviewRecord[]>([]);
+  const [recruiters, setRecruiters] = useState<RecruiterOption[]>([]);
+  const [recruitersLoading, setRecruitersLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notesById, setNotesById] = useState<Record<string, string>>({});
   const [rescheduleOpenId, setRescheduleOpenId] = useState<string | null>(null);
-  const [rescheduleAtById, setRescheduleAtById] = useState<Record<string, string>>(
-    {},
-  );
-  const [meetingLinkById, setMeetingLinkById] = useState<Record<string, string>>(
-    {},
-  );
+  const [rescheduleAtById, setRescheduleAtById] = useState<
+    Record<string, string>
+  >({});
+  const [meetingLinkById, setMeetingLinkById] = useState<
+    Record<string, string>
+  >({});
+  const [editOpenId, setEditOpenId] = useState<string | null>(null);
+  const [editAtById, setEditAtById] = useState<Record<string, string>>({});
+  const [editMeetingLinkById, setEditMeetingLinkById] = useState<
+    Record<string, string>
+  >({});
+  const [editInterviewerById, setEditInterviewerById] = useState<
+    Record<string, string>
+  >({});
+
+  const loadRecruiters = useCallback(async () => {
+    setRecruitersLoading(true);
+    try {
+      const res = await getJson<{ success: boolean; data: RecruiterOption[] }>(
+        "/companies/me/recruiters",
+      );
+      if (res.ok && res.body?.success) {
+        setRecruiters(res.body.data || []);
+      } else {
+        setRecruiters([]);
+      }
+    } catch {
+      setRecruiters([]);
+    } finally {
+      setRecruitersLoading(false);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,13 +122,41 @@ export default function UpcomingCompanyInterviewsPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    void loadRecruiters();
+  }, [loadRecruiters]);
+
+  const openEditor = (record: InterviewRecord) => {
+    setEditOpenId(record._id);
+    setEditAtById((prev) => ({
+      ...prev,
+      [record._id]:
+        prev[record._id] ?? toLocalDatetimeValue(record.scheduled_at),
+    }));
+    setEditMeetingLinkById((prev) => ({
+      ...prev,
+      [record._id]: prev[record._id] ?? (record.meeting_link || ""),
+    }));
+    setEditInterviewerById((prev) => ({
+      ...prev,
+      [record._id]: prev[record._id] ?? getInterviewerId(record.interviewer_id),
+    }));
+    if (notesById[record._id] === undefined) {
+      setNotesById((prev) => ({
+        ...prev,
+        [record._id]: record.instructions || "",
+      }));
+    }
+  };
+
   const upcoming = useMemo(() => {
     const now = Date.now();
     return records
       .filter((i) => isActiveStatus(i.status) && isUpcomingInterview(i, now))
       .sort(
         (a, b) =>
-          new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime(),
+          new Date(a.scheduled_at).getTime() -
+          new Date(b.scheduled_at).getTime(),
       );
   }, [records]);
 
@@ -119,6 +203,37 @@ export default function UpcomingCompanyInterviewsPage() {
     }
   };
 
+  const saveEdits = async (id: string) => {
+    const scheduledAt = editAtById[id];
+    if (!scheduledAt) {
+      showToast("Choose a new date & time", "error");
+      return;
+    }
+
+    setBusyId(id);
+    try {
+      await interviewApi.rescheduleInterviewCompany(id, {
+        scheduled_at: new Date(scheduledAt).toISOString(),
+        meeting_link: editMeetingLinkById[id] ?? "",
+        instructions: notesById[id] ?? "",
+        ...(editInterviewerById[id]
+          ? { interviewer_id: editInterviewerById[id] }
+          : {}),
+      });
+      showToast("Interview updated", "success");
+      setEditOpenId(null);
+      await load();
+    } catch {
+      showToast("Could not update interview", "error");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const selectedInterview = editOpenId
+    ? records.find((record) => record._id === editOpenId) || null
+    : null;
+
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 0 4rem" }}>
       <div style={{ marginBottom: 18 }}>
@@ -149,13 +264,15 @@ export default function UpcomingCompanyInterviewsPage() {
           Upcoming Interviews
         </h1>
         <p style={{ margin: 0, color: "#64748b", fontWeight: 600 }}>
-          Mark interviews as complete and decide whether the candidate is selected
-          or rejected.
+          Mark interviews as complete and decide whether the candidate is
+          selected or rejected.
         </p>
       </div>
 
       {loading ? (
-        <div style={{ padding: "3rem 0", textAlign: "center", color: "#64748b" }}>
+        <div
+          style={{ padding: "3rem 0", textAlign: "center", color: "#64748b" }}
+        >
           Loading interviews…
         </div>
       ) : upcoming.length === 0 ? (
@@ -213,10 +330,22 @@ export default function UpcomingCompanyInterviewsPage() {
                     >
                       {studentName}
                     </h3>
-                    <p style={{ margin: "0 0 4px", color: "#475569", fontWeight: 700 }}>
+                    <p
+                      style={{
+                        margin: "0 0 4px",
+                        color: "#475569",
+                        fontWeight: 700,
+                      }}
+                    >
                       {roleTitle}
                     </p>
-                    <p style={{ margin: 0, color: "#94a3b8", fontSize: "0.9rem" }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        color: "#94a3b8",
+                        fontSize: "0.9rem",
+                      }}
+                    >
                       {studentEmail}
                     </p>
                   </div>
@@ -241,7 +370,13 @@ export default function UpcomingCompanyInterviewsPage() {
                         ? "—"
                         : scheduledAt.toLocaleString()}
                     </div>
-                    <div style={{ marginTop: 8, color: "#64748b", fontWeight: 700 }}>
+                    <div
+                      style={{
+                        marginTop: 8,
+                        color: "#64748b",
+                        fontWeight: 700,
+                      }}
+                    >
                       Type: {i.interview_type}
                     </div>
                   </div>
@@ -263,7 +398,10 @@ export default function UpcomingCompanyInterviewsPage() {
                     <textarea
                       value={notesById[i._id] ?? ""}
                       onChange={(e) =>
-                        setNotesById((prev) => ({ ...prev, [i._id]: e.target.value }))
+                        setNotesById((prev) => ({
+                          ...prev,
+                          [i._id]: e.target.value,
+                        }))
                       }
                       rows={2}
                       style={{
@@ -282,8 +420,11 @@ export default function UpcomingCompanyInterviewsPage() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => {
-                        setRescheduleOpenId((prev) => (prev === i._id ? null : i._id));
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setRescheduleOpenId((prev) =>
+                          prev === i._id ? null : i._id,
+                        );
                         if (!rescheduleAtById[i._id]) {
                           const d = new Date(i.scheduled_at);
                           const local = new Date(
@@ -291,7 +432,10 @@ export default function UpcomingCompanyInterviewsPage() {
                           )
                             .toISOString()
                             .slice(0, 16);
-                          setRescheduleAtById((p) => ({ ...p, [i._id]: local }));
+                          setRescheduleAtById((p) => ({
+                            ...p,
+                            [i._id]: local,
+                          }));
                         }
                         if (meetingLinkById[i._id] === undefined) {
                           setMeetingLinkById((p) => ({
@@ -300,7 +444,11 @@ export default function UpcomingCompanyInterviewsPage() {
                           }));
                         }
                       }}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
                     >
                       <FiEdit3 /> Reschedule
                     </Button>
@@ -362,7 +510,9 @@ export default function UpcomingCompanyInterviewsPage() {
                           }}
                         />
                       </div>
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <div
+                        style={{ display: "flex", gap: 10, flexWrap: "wrap" }}
+                      >
                         <Button
                           variant="primary"
                           size="sm"
@@ -386,16 +536,30 @@ export default function UpcomingCompanyInterviewsPage() {
                     <Button
                       variant="primary"
                       loading={busyId === i._id}
-                      onClick={() => markComplete(i._id, "selected")}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        markComplete(i._id, "selected");
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
                     >
                       <FiCheckCircle /> Complete + Select
                     </Button>
                     <Button
                       variant="danger"
                       loading={busyId === i._id}
-                      onClick={() => markComplete(i._id, "rejected")}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        markComplete(i._id, "rejected");
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
                     >
                       <FiXCircle /> Complete + Reject
                     </Button>
@@ -406,7 +570,191 @@ export default function UpcomingCompanyInterviewsPage() {
           })}
         </div>
       )}
+
+      <Modal
+        isOpen={Boolean(selectedInterview)}
+        onClose={() => setEditOpenId(null)}
+        title="Interview options"
+        size="lg"
+      >
+        {selectedInterview && (
+          <div style={{ display: "grid", gap: 18 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 900 }}>
+                  {selectedInterview.application &&
+                  typeof selectedInterview.application === "object"
+                    ? selectedInterview.application.student?.user?.name ||
+                      "Candidate"
+                    : "Candidate"}
+                </h3>
+                <p style={{ margin: "6px 0 0", color: "#64748b" }}>
+                  {selectedInterview.application &&
+                  typeof selectedInterview.application === "object"
+                    ? selectedInterview.application.internship?.title ||
+                      "Interview"
+                    : "Interview"}
+                </p>
+              </div>
+              <div
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 999,
+                  background: "rgba(34,151,250,0.1)",
+                  color: "#2297FA",
+                  fontSize: "0.75rem",
+                  fontWeight: 800,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {selectedInterview.status}
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gap: 14 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: 14,
+                }}
+              >
+                <FormField label="Date & time" id="edit-scheduled-at">
+                  <Input
+                    type="datetime-local"
+                    value={editAtById[selectedInterview._id] ?? ""}
+                    onChange={(event) =>
+                      setEditAtById((prev) => ({
+                        ...prev,
+                        [selectedInterview._id]: event.target.value,
+                      }))
+                    }
+                  />
+                </FormField>
+
+                <FormField label="Interviewer" id="edit-interviewer">
+                  <Select
+                    value={editInterviewerById[selectedInterview._id] ?? ""}
+                    onChange={(event) =>
+                      setEditInterviewerById((prev) => ({
+                        ...prev,
+                        [selectedInterview._id]: event.target.value,
+                      }))
+                    }
+                    disabled={recruitersLoading}
+                  >
+                    <option value="">Keep current interviewer</option>
+                    {recruiters.map((recruiter) => (
+                      <option key={recruiter._id} value={recruiter._id}>
+                        {recruiter.name}
+                        {recruiter.email ? ` · ${recruiter.email}` : ""}
+                        {recruiter.title ? ` · ${recruiter.title}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+              </div>
+
+              <FormField label="Meeting link" id="edit-meeting-link">
+                <Input
+                  type="url"
+                  placeholder="https://meet.google.com/..."
+                  value={editMeetingLinkById[selectedInterview._id] ?? ""}
+                  onChange={(event) =>
+                    setEditMeetingLinkById((prev) => ({
+                      ...prev,
+                      [selectedInterview._id]: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+
+              <FormField label="Instructions" id="edit-notes">
+                <Textarea
+                  rows={4}
+                  placeholder="Internal instructions, talking points, or notes"
+                  value={notesById[selectedInterview._id] ?? ""}
+                  onChange={(event) =>
+                    setNotesById((prev) => ({
+                      ...prev,
+                      [selectedInterview._id]: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+                paddingTop: 12,
+                borderTop: "1px solid #e2e8f0",
+              }}
+            >
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Button variant="ghost" onClick={() => setEditOpenId(null)}>
+                  Close
+                </Button>
+                <Button
+                  variant="secondary"
+                  loading={busyId === selectedInterview._id}
+                  onClick={() => saveEdits(selectedInterview._id)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <FiEdit3 /> Save changes
+                </Button>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Button
+                  variant="primary"
+                  loading={busyId === selectedInterview._id}
+                  onClick={() =>
+                    markComplete(selectedInterview._id, "selected")
+                  }
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <FiCheckCircle /> Complete + Select
+                </Button>
+                <Button
+                  variant="danger"
+                  loading={busyId === selectedInterview._id}
+                  onClick={() =>
+                    markComplete(selectedInterview._id, "rejected")
+                  }
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <FiXCircle /> Complete + Reject
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
-

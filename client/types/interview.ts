@@ -20,7 +20,7 @@ export interface InterviewRecord {
   instructions?: string;
   round_number?: number;
   application?: InterviewApplicationPopulated | string;
-  interviewer_id?: { name?: string; email?: string } | string;
+  interviewer_id?: { _id?: string; name?: string; email?: string } | string;
   company?: { company_name?: string } | string;
 }
 
