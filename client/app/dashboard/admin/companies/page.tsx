@@ -179,8 +179,8 @@ function AdminCompaniesContent() {
                     <StatusBadge status={c.approval_status} />
                   </td>
                   <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                    {c.approval_status === "pending" && (
-                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      {c.approval_status !== "approved" && (
                         <Button
                           variant="primary"
                           size="sm"
@@ -189,6 +189,8 @@ function AdminCompaniesContent() {
                         >
                           Approve
                         </Button>
+                      )}
+                      {c.approval_status !== "rejected" && (
                         <Button
                           variant="danger"
                           size="sm"
@@ -197,8 +199,8 @@ function AdminCompaniesContent() {
                         >
                           Reject
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </td>
                   <td style={{ padding: "14px 16px", textAlign: "right" }}>
                     <Link

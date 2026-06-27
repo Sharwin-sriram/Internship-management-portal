@@ -214,6 +214,30 @@ export const getCompanyById = async (req, res) => {
   }
 };
 
+// @desc    Delete a company
+// @route   DELETE /api/companies/:id
+// @access  Admin, Coordinator
+export const deleteCompany = async (req, res) => {
+  try {
+    const company = await Company.findById(req.params.id);
+    if (!company) {
+      return res.status(404).json({ success: false, message: "Company not found." });
+    }
+
+    await Internship.deleteMany({ company: company._id });
+    
+    if (company.user) {
+      await User.findByIdAndDelete(company.user);
+    }
+
+    await Company.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({ success: true, message: "Company deleted successfully." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server Error", error: error.message });
+  }
+};
+
 const getCompanyForUser = async (userId) => {
   return Company.findOne({ user: userId });
 };

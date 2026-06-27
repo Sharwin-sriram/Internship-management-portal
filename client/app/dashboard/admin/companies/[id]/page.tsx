@@ -3,11 +3,12 @@
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { fetchAdminCompanyProfile } from "../../../../../services/adminApi";
+import { fetchAdminCompanyProfile, updateCompanyApproval, deleteAdminCompany } from "../../../../../services/adminApi";
 import type { AdminInternshipListItem, CompanyRecord } from "../../../../../services/adminApi";
 
 export default function AdminCompanyProfilePage() {
   const params = useParams();
+  const router = require("next/navigation").useRouter();
   const id = typeof params.id === "string" ? params.id : params.id?.[0] ?? "";
 
   const [company, setCompany] = useState<CompanyRecord | null>(null);
@@ -24,6 +25,31 @@ export default function AdminCompanyProfilePage() {
     totalApplications: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const handleApproval = async (status: "approved" | "rejected") => {
+    setActionLoading(true);
+    try {
+      await updateCompanyApproval(id, status);
+      await load();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this company? This action cannot be undone.")) return;
+    setActionLoading(true);
+    try {
+      await deleteAdminCompany(id);
+      router.push("/dashboard/admin/companies");
+    } catch (error) {
+      console.error(error);
+      setActionLoading(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -91,24 +117,25 @@ export default function AdminCompanyProfilePage() {
           marginBottom: "var(--space-xl)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-lg)" }}>
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 16,
-              background: "var(--gradient-brand)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "white",
-              fontWeight: 800,
-              fontSize: "1.5rem",
-            }}
-          >
-            {(company.company_name || "C").charAt(0).toUpperCase()}
-          </div>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-lg)" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-lg)", flex: 1 }}>
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 16,
+                background: "var(--gradient-brand)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontWeight: 800,
+                fontSize: "1.5rem",
+              }}
+            >
+              {(company.company_name || "C").charAt(0).toUpperCase()}
+            </div>
+            <div>
             <h1 style={{ fontSize: "1.75rem", fontWeight: 800, marginBottom: 8 }}>
               {company.company_name || company.legal_name}
             </h1>
@@ -125,6 +152,61 @@ export default function AdminCompanyProfilePage() {
                 {company.website}
               </a>
             )}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexDirection: "column", alignItems: "flex-end" }}>
+            {company.approval_status !== "approved" && (
+              <button
+                onClick={() => handleApproval("approved")}
+                disabled={actionLoading}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "var(--radius)",
+                  border: "none",
+                  background: "#16a34a",
+                  color: "white",
+                  fontWeight: 600,
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  width: "120px"
+                }}
+              >
+                Approve
+              </button>
+            )}
+            {company.approval_status !== "rejected" && (
+              <button
+                onClick={() => handleApproval("rejected")}
+                disabled={actionLoading}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "var(--radius)",
+                  border: "none",
+                  background: "#d97706",
+                  color: "white",
+                  fontWeight: 600,
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  width: "120px"
+                }}
+              >
+                Reject
+              </button>
+            )}
+            <button
+              onClick={handleDelete}
+              disabled={actionLoading}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "var(--radius)",
+                border: "none",
+                background: "#dc2626",
+                color: "white",
+                fontWeight: 600,
+                cursor: actionLoading ? "not-allowed" : "pointer",
+                width: "120px"
+              }}
+            >
+              Delete from list
+            </button>
           </div>
         </div>
       </header>

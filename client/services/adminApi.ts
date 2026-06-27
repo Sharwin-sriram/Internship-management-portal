@@ -7,6 +7,7 @@ export interface AdminUser {
   email: string;
   role: string;
   emailVerified?: boolean;
+  approval_status?: "pending" | "approved" | "rejected";
   createdAt?: string;
 }
 
@@ -18,9 +19,55 @@ export interface CompanyRecord {
   approval_status?: "pending" | "approved" | "rejected";
   is_verified?: boolean;
   website?: string;
+  description?: string;
   primary_contact?: { name?: string; email?: string; phone?: string };
   user?: { name?: string; email?: string };
   createdAt?: string;
+}
+
+export interface StudentDetail {
+  _id: string;
+  college: string;
+  branch: string;
+  cgpa: number;
+  graduation_year: number;
+  skills: string[];
+  skillProficiencies?: Array<{ skill: string; proficiency: number }>;
+  placement_eligible: boolean;
+  bio: string;
+  linkedin_url: string;
+  github_url: string;
+  projects?: Array<{ title: string; desc: string }>;
+}
+
+export interface StudentProfileForAdmin {
+  user: {
+    _id: string;
+    name: string;
+    email: string;
+    role: string;
+    emailVerified: boolean;
+    approval_status: "pending" | "approved" | "rejected";
+    authProvider: string;
+    githubId?: string | null;
+    googleId?: string | null;
+  };
+  student: StudentDetail;
+  verification: {
+    hasGitHub: boolean;
+    hasLinkedIn: boolean;
+    autoApproved: boolean;
+  };
+}
+
+export interface AdminStudentRow extends AdminUser {
+  college?: string;
+  branch?: string;
+  cgpa?: number;
+  linkedin_url?: string;
+  github_url?: string;
+  hasGitHub?: boolean;
+  hasLinkedIn?: boolean;
 }
 
 export async function fetchAdminUsers(role?: string) {
@@ -29,6 +76,23 @@ export async function fetchAdminUsers(role?: string) {
     count: number;
     data: AdminUser[];
   }>("/rbac/users", { params: role ? { role } : undefined });
+  return data;
+}
+
+export async function fetchAdminStudents() {
+  const { data } = await api.get<{
+    success: boolean;
+    count: number;
+    data: AdminStudentRow[];
+  }>("/rbac/students");
+  return data;
+}
+
+export async function fetchStudentProfile(studentId: string) {
+  const { data } = await api.get<{
+    success: boolean;
+    data: StudentProfileForAdmin;
+  }>(`/rbac/students/${studentId}`);
   return data;
 }
 
@@ -68,6 +132,31 @@ export async function updateUserRole(userId: string, role: string) {
     data: AdminUser;
     message?: string;
   }>(`/rbac/users/${userId}/role`, { role });
+  return data;
+}
+
+export async function updateUserApprovalStatus(userId: string, status: "approved" | "rejected" | "pending") {
+  const { data } = await api.put<{
+    success: boolean;
+    data: AdminUser;
+    message?: string;
+  }>(`/rbac/users/${userId}/approval`, { status });
+  return data;
+}
+
+export async function deleteAdminUser(userId: string) {
+  const { data } = await api.delete<{
+    success: boolean;
+    message?: string;
+  }>(`/rbac/users/${userId}`);
+  return data;
+}
+
+export async function deleteAdminCompany(companyId: string) {
+  const { data } = await api.delete<{
+    success: boolean;
+    message?: string;
+  }>(`/companies/${companyId}`);
   return data;
 }
 

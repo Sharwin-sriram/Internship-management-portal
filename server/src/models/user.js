@@ -57,6 +57,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    approval_status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved",
+    },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     emailVerified: {
@@ -73,6 +78,13 @@ const userSchema = new mongoose.Schema(
 
 // Hash password before saving
 userSchema.pre("save", async function () {
+  // Validate and correct role if needed
+  const validRoles = ["admin", "coordinator", "student", "company", "interviewer"];
+  if (!this.role || !validRoles.includes(this.role)) {
+    console.warn(`[User Model] User ${this.email} has invalid role '${this.role}'. Resetting to 'student'.`);
+    this.role = "student";
+  }
+
   if (!this.isModified("password") || !this.password) {
     return;
   }

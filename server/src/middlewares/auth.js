@@ -37,6 +37,14 @@ export const protect = async (req, res, next) => {
       });
     }
 
+    // Validate role exists and is valid
+    const validRoles = ["admin", "coordinator", "student", "company", "interviewer"];
+    if (!user.role || !validRoles.includes(user.role)) {
+      console.warn(`[Auth] Invalid role detected for user ${user._id}: '${user.role}'. Resetting to 'student'.`);
+      user.role = "student";
+      await user.save();
+    }
+
     // Add user to request object
     req.user = user;
     next();
