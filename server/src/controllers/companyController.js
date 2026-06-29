@@ -99,6 +99,7 @@ export const createCompany = async (req, res) => {
       industry,
       size,
       website,
+      address: req.body.address || "",
       primary_contact,
       logo_url: logo_url || "",
       description: description || "",
@@ -280,6 +281,7 @@ export const updateMyCompany = async (req, res) => {
       industry: req.body.industry ?? company.industry,
       size: req.body.size ?? company.size,
       website: req.body.website ?? company.website,
+      address: req.body.address ?? company.address,
       // Merge primary_contact so partial updates don't remove existing subfields (like email)
       primary_contact: req.body.primary_contact
         ? { ...(company.primary_contact || {}), ...req.body.primary_contact }
@@ -583,7 +585,7 @@ export const getMyApplications = async (req, res) => {
     const applications = await Application.find(query)
       .populate({
         path: "student",
-        populate: { path: "user", select: "name email" },
+        populate: { path: "user", select: "name email phone" },
       })
       .populate("internship", "title")
       .sort({ last_updated: -1 })
@@ -594,6 +596,8 @@ export const getMyApplications = async (req, res) => {
       studentId: app.student?._id,
       studentName: app.student?.user?.name || "Student",
       studentEmail: app.student?.user?.email || "",
+      studentPhone: app.student?.user?.phone || "",
+      studentAddress: app.student?.address || "",
       roleTitle: app.internship?.title || "Internship",
       internshipId: app.internship?._id,
       status: app.status,
@@ -711,6 +715,56 @@ export const shortlistMyApplication = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error while shortlisting application.",
+    });
+  }
+};
+
+// @desc    Reject a company application directly
+// @route   PATCH /api/companies/me/applications/:applicationId/reject
+// @access  Company
+export const rejectMyApplication = async (req, res) => {
+  try {
+    const company = await getCompanyForUser(req.user._id);
+    if (!company) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Company profile not found." });
+    }
+
+    const application = await Application.findById(
+      req.params.applicationId,
+    ).populate("internship", "company title");
+    if (!application) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Application not found." });
+    }
+
+    if (String(application.internship?.company) !== String(company._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only update applications for your own internships.",
+      });
+    }
+
+    const { rejection_reason } = req.body;
+
+    application.status = "rejected";
+    application.rejection_reason = rejection_reason || "";
+    await application.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: application._id,
+        status: application.status,
+        rejection_reason: application.rejection_reason,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error while rejecting application.",
     });
   }
 };

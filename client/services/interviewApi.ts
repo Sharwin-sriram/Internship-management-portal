@@ -67,10 +67,11 @@ export async function completeInterview(
   id: string,
   decision: "selected" | "rejected",
   notes?: string,
+  rejectionReason?: string,
 ) {
   const { data } = await api.post<{ data: InterviewRecord }>(
     `/interviews/${id}/complete`,
-    { decision, notes },
+    { decision, notes, rejection_reason: rejectionReason },
   );
   return data;
 }

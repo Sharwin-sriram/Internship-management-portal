@@ -14,7 +14,14 @@ const applicationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["applied", "shortlisted", "interviewing", "selected", "rejected"],
+      enum: [
+        "applied",
+        "shortlisted",
+        "interviewing",
+        "selected",
+        "offer_issued",
+        "rejected",
+      ],
       default: "applied",
     },
     resume_version: {
@@ -34,6 +41,9 @@ const applicationSchema = new mongoose.Schema(
     },
     offer_made_at: {
       type: Date,
+    },
+    rejection_reason: {
+      type: String,
     },
     last_updated: {
       type: Date,

@@ -23,6 +23,7 @@ function formatInterviewTimeFromScheduledAt(dateLike) {
 function mapPortalToJobUiStatus(portalApp, offer) {
   if (!portalApp) return null;
   if (portalApp.status === "rejected") return "rejected";
+  if (portalApp.status === "offer_issued") return "offer_issued";
   const offerIssued =
     offer &&
     offer.status &&
@@ -108,6 +109,15 @@ async function enrichJobApplicationsForStudent(jobAppDocs, studentUserId) {
     const offer = offerByApplication.get(String(pa._id));
     const uiStatus = mapPortalToJobUiStatus(pa, offer);
     if (uiStatus) plain.status = uiStatus;
+    if (pa.rejection_reason) {
+      plain.rejectionReason = pa.rejection_reason;
+    }
+    if (offer) {
+      plain.offerLetterId = String(offer._id);
+      plain.offerLetterDownloadUrl = `/api/offer-letters/${offer._id}/download`;
+      plain.offerLetterStatus = offer.status;
+      plain.offerLetterSentAt = offer.email_sent_at || offer.sent_date || null;
+    }
 
     const iv = interviewByApplication.get(String(pa._id));
     if (iv?.scheduled_at || iv?.interview_date) {
@@ -233,7 +243,9 @@ export const createJobApplication = async (req, res) => {
     if (internshipStr) {
       query.internship = internshipStr;
     } else {
-      query.jobTitle = { $regex: new RegExp(`^${String(jobTitle).trim()}$`, "i") };
+      query.jobTitle = {
+        $regex: new RegExp(`^${String(jobTitle).trim()}$`, "i"),
+      };
     }
 
     const existingApplication = await JobApplication.findOne(query);
