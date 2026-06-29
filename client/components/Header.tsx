@@ -19,14 +19,24 @@ export default function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const isAdminRoute =
+    pathname.startsWith("/dashboard/admin") || pathname.startsWith("/admin");
+  const hideMinimalHeader = pathname === "/admin/login";
+
   const navLinks = user
-    ? [{ href: "/dashboard", label: "Dashboard" }]
-    : isDashboardRoute
+    ? user.role === "admin"
+      ? [{ href: "/dashboard/admin", label: "Admin" }]
+      : [{ href: "/dashboard", label: "Dashboard" }]
+    : isDashboardRoute || isAdminRoute
       ? [{ href: "/", label: "Home" }]
       : [
           { href: "/", label: "Home" },
           { href: "/login", label: "Sign in" },
         ];
+
+  if (hideMinimalHeader) {
+    return null;
+  }
 
   return (
     <header

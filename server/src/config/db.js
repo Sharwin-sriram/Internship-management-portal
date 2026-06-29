@@ -1,4 +1,9 @@
 import mongoose from "mongoose";
+import { bootstrapAdminFromEnv } from "../services/adminBootstrap.js";
+import {
+  seedSampleDataIfNeeded,
+  ensureSampleAdmin,
+} from "../services/sampleSeedService.js";
 
 const connectDB = async () => {
   try {
@@ -9,6 +14,21 @@ const connectDB = async () => {
     });
 
     console.log(` MongoDB Connected Successfully`);
+
+    try {
+      const envBootstrap = await bootstrapAdminFromEnv();
+      if (!envBootstrap.synced) {
+        await seedSampleDataIfNeeded();
+      }
+    } catch (adminErr) {
+      console.warn("[admin] Bootstrap skipped:", adminErr.message);
+      try {
+        await ensureSampleAdmin();
+        await seedSampleDataIfNeeded();
+      } catch (seedErr) {
+        console.warn("[seed] Sample data skipped:", seedErr.message);
+      }
+    }
     
     mongoose.connection.on('error', (err) => {
       console.error(`.. MongoDB connection error: ${err}`);

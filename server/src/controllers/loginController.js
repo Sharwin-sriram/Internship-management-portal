@@ -61,6 +61,13 @@ export const login = async (req, res) => {
       });
     }
 
+    if (user.isActive === false) {
+      return res.status(401).json({
+        success: false,
+        message: "Account is disabled",
+      });
+    }
+
     const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {

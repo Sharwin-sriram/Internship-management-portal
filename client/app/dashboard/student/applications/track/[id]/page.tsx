@@ -46,6 +46,7 @@ interface JobApplicationData {
   interviewDate?: string;
   interviewTime?: string;
   interviewLink?: string;
+  interviewType?: 'phone' | 'video' | 'in-person';
   adminNotes?: string;
   offerLetterId?: string;
   offerLetterDownloadUrl?: string;
@@ -766,6 +767,30 @@ export default function TrackApplicationPage({
                     Join Meeting{" "}
                     <FiArrowLeft style={{ transform: "rotate(135deg)" }} />
                   </a>
+                </div>
+              )}
+              
+              {application.interviewLink && application.interviewType === 'in-person' && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, background: 'rgba(34, 151, 250, 0.06)', padding: '16px', borderRadius: 'var(--radius)', border: '1px dashed rgba(34, 151, 250, 0.3)', marginBottom: 'var(--space-md)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <FiMapPin size={20} style={{ color: 'var(--color-primary)', marginTop: 2 }} />
+                    <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>In-Person Interview Address:</span>
+                  </div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-foreground)', flex: 1, whiteSpace: 'pre-line' }}>
+                    {application.interviewLink}
+                  </div>
+                </div>
+              )}
+
+              {application.interviewLink && application.interviewType === 'phone' && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, background: 'rgba(34, 151, 250, 0.06)', padding: '16px', borderRadius: 'var(--radius)', border: '1px dashed rgba(34, 151, 250, 0.3)', marginBottom: 'var(--space-md)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <FiPhone size={20} style={{ color: 'var(--color-primary)', marginTop: 2 }} />
+                    <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>Phone Interview Contact:</span>
+                  </div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-foreground)', flex: 1 }}>
+                    {application.interviewLink}
+                  </div>
                 </div>
               )}
 

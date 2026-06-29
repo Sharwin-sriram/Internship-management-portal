@@ -37,7 +37,7 @@ const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024
 router.post(
   "/",
   protect,
-  authorize("student"),
+  authorize("student", "admin"),
   upload.single("resume"),
   createJobApplication,
 );

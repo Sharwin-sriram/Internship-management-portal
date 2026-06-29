@@ -120,6 +120,13 @@ router.put(
   rejectTalentUnlockRequest,
 );
 
-router.route("/:id").get(getCompanyById);
+import {
+  deleteCompany
+} from "../controllers/companyController.js";
+
+router
+  .route("/:id")
+  .get(getCompanyById)
+  .delete(protect, authorize("admin", "coordinator"), deleteCompany);
 
 export default router;

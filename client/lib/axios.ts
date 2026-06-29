@@ -33,12 +33,20 @@ api.interceptors.response.use(
       const isAuthAttempt =
         url.includes("/auth/login") ||
         url.includes("/companies/login") ||
+        url.includes("/admin/login") ||
         url.includes("/auth/register");
       if (!isAuthAttempt) {
         clearAuth();
         const path = window.location.pathname;
-        if (!path.startsWith("/login") && !path.startsWith("/register")) {
-          window.location.href = `/login?redirect=${encodeURIComponent(path)}`;
+        if (
+          !path.startsWith("/login") &&
+          !path.startsWith("/register") &&
+          !path.startsWith("/admin/login")
+        ) {
+          const loginPath = path.startsWith("/dashboard/admin") || path.startsWith("/admin")
+            ? `/admin/login?redirect=${encodeURIComponent(path)}`
+            : `/login?redirect=${encodeURIComponent(path)}`;
+          window.location.href = loginPath;
         }
       }
     }

@@ -126,7 +126,9 @@ async function enrichJobApplicationsForStudent(jobAppDocs, studentUserId) {
         (iv.interview_time && String(iv.interview_time).trim()) ||
         formatInterviewTimeFromScheduledAt(iv.scheduled_at);
       plain.interviewLink = iv.meeting_link || plain.interviewLink;
-      if (iv.instructions) plain.adminNotes = iv.instructions;
+      plain.interviewType = iv.interview_type || 'video'; // default to video for older records
+      if (iv.instructions)
+        plain.adminNotes = iv.instructions;
     }
     return plain;
   });
@@ -213,25 +215,27 @@ export const createJobApplication = async (req, res) => {
 
       studentDoc = await Student.findOne({ user: req.user._id });
       if (!studentDoc) {
-        await safeUnlink(resumePath);
-        return res.status(400).json({
-          success: false,
-          message:
-            "Complete your student profile before applying to internships.",
+        if (req.user.role !== 'admin') {
+          await safeUnlink(resumePath);
+          return res.status(400).json({
+            success: false,
+            message:
+              "Complete your student profile before applying to internships.",
+          });
+        }
+      } else {
+        const existingPortalApp = await Application.findOne({
+          student: studentDoc._id,
+          internship: internshipDoc._id,
         });
-      }
-
-      const existingPortalApp = await Application.findOne({
-        student: studentDoc._id,
-        internship: internshipDoc._id,
-      });
-      if (existingPortalApp) {
-        await safeUnlink(resumePath);
-        return res.status(400).json({
-          success: false,
-          message:
-            "You have already applied for this internship position. You cannot apply more than once.",
-        });
+        if (existingPortalApp) {
+          await safeUnlink(resumePath);
+          return res.status(400).json({
+            success: false,
+            message:
+              "You have already applied for this internship position. You cannot apply more than once.",
+          });
+        }
       }
     }
 

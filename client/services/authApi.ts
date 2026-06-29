@@ -23,6 +23,17 @@ export async function loginCompany(body: LoginBody) {
   return data;
 }
 
+/** Private admin portal login */
+export async function loginAdmin(body: LoginBody) {
+  const { data } = await api.post<LoginResult>("/admin/login", body);
+  return data;
+}
+
+export async function fetchAdminMe() {
+  const { data } = await api.get<{ success: boolean; data: AuthUser }>("/admin/me");
+  return data;
+}
+
 export async function fetchMe() {
   const { data } = await api.get<{ success: boolean; data: AuthUser }>("/auth/me");
   return data;

@@ -55,10 +55,8 @@ const applicationSchema = new mongoose.Schema(
   },
 );
 
-// Update last_updated on save
-applicationSchema.pre("save", function (next) {
+applicationSchema.pre("save", function () {
   this.last_updated = Date.now();
-  next();
 });
 
 const Application = mongoose.model("Application", applicationSchema);
